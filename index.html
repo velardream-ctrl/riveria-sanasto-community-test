@@ -47,12 +47,12 @@
   <div class="main-column">
     <header class="topbar">
       <div><span class="eyebrow">TERVETULOA OPISKELEMAAN!</span><h1 id="page-title">Изучаем финский</h1><p id="page-subtitle">Термины и фразы, которые пригодятся на практике.</p></div>
-      <div class="header-badges"><span class="account-badge" id="family-account-badge" hidden></span><span class="status" id="online-status">● Проверка связи</span><span class="status muted" id="storage-status">Проверка сохранения</span></div>
+      <div class="header-badges"><button type="button" id="home-refresh-button" class="btn white" aria-label="На главную и проверить обновления" title="Вернуться к карточкам и проверить обновления">⌂ Главная ↻</button><button type="button" id="home-drive-button" class="btn white" title="Подключить личный Google Drive">☁ Drive</button><button type="button" id="home-apply-update" class="btn good" hidden style="display:none">↻ Применить обновление</button><span id="home-update-status" class="status muted" role="status" aria-live="polite" hidden></span><span class="account-badge" id="family-account-badge" hidden></span><span class="status" id="online-status">● Проверка связи</span><span class="status muted" id="storage-status">Проверка сохранения</span></div>
     </header>
     <main id="main-content" tabindex="-1">
       <div class="load-box">Открываю базу слов…</div>
     </main>
-    <footer>Riveria Sanasto v2.1.0 Community Beta • Только учебные примеры. Не вводите настоящие данные пациентов.</footer>
+    <footer>Riveria Sanasto v2.1.2 Community Beta • Только учебные примеры. Не вводите настоящие данные пациентов.</footer>
   </div>
 </div>
 <nav class="mobile-nav" aria-label="Разделы приложения — листай влево и вправо">
@@ -80,5 +80,6 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="account-settings.js?v=2.0.5"></script>
 <script src="mobile-nav.js?v=2.0.4"></script>
+<script src="home-refresh.js?v=2.1.2"></script>
 </body>
 </html>
