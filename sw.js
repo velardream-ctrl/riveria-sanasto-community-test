@@ -1,8 +1,7 @@
-/* Simple cache-first offline service worker; no server sync. */
-var CACHE_NAME='riveria-sanasto-community-v2.1.2';
-var FILES=['./','./index.html','./app.js?v=2.1.0','./style.css?v=2.0.4','./data.js?v=2.1.0','./config.js?v=2.0.4','./family.js?v=2.0.5','./community.js?v=2.0.5','./mobile-nav.js?v=2.0.4','./home-refresh.js?v=2.1.2','./account-settings.js?v=2.0.5','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+/* Riveria Community 2.1.3 — offline cache; do not cache Google APIs or tokens. */
+var CACHE_NAME='riveria-sanasto-community-v2.1.3';
+var FILES=['./','./index.html','./app.js?v=2.1.0','./style.css?v=2.0.4','./data.js?v=2.1.0','./config.js?v=2.0.4','./family.js?v=2.0.5','./community.js?v=2.0.5','./mobile-nav.js?v=2.0.4','./home-refresh.js?v=2.1.3','./account-settings.js?v=2.0.5','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',function(event){event.waitUntil(caches.open(CACHE_NAME).then(function(c){return c.addAll(FILES);}).then(function(){return self.skipWaiting();}));});
 self.addEventListener('activate',function(event){event.waitUntil(caches.keys().then(function(keys){return Promise.all(keys.map(function(k){if(k.indexOf('riveria-sanasto-community-')===0&&k!==CACHE_NAME)return caches.delete(k);}));}).then(function(){return self.clients.claim();}));});
 self.addEventListener('fetch',function(event){if(event.request.method!=='GET')return;var u=new URL(event.request.url);if(u.origin!==self.location.origin)return;event.respondWith((event.request.mode==='navigate'?fetch(event.request).then(function(response){if(response&&response.status===200){var copy=response.clone();caches.open(CACHE_NAME).then(function(c){c.put(event.request,copy);});}return response;}).catch(function(){return caches.match(event.request).then(function(hit){return hit||caches.match('./index.html');});}):caches.match(event.request).then(function(hit){if(hit)return hit;return fetch(event.request).then(function(response){if(response&&response.status===200){var copy=response.clone();caches.open(CACHE_NAME).then(function(c){c.put(event.request,copy);});}return response;});})));});
-
 self.addEventListener('message',function(event){if(event.data&&event.data.type==='RS_CACHE_VERSION'&&event.ports&&event.ports[0])event.ports[0].postMessage({cacheVersion:CACHE_NAME});});
