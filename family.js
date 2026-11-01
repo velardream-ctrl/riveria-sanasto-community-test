@@ -6,6 +6,7 @@
 (function(){
  'use strict';
  var config=window.RS_FIREBASE_CONFIG||{}, KEY='rs_family_auth_v1', PREFIX='rs_family_v1_', uid='', email='', token='', refreshToken='', expires=0;
+ var auth=null,authStarting=false,loginPending=false,loginTimer=null,offlineRecovered=false;
  var busy=false, timer=null, lastSync=0, lastStatus='Не подключено', localVersion=2, registerMode=false;
  var legacyKeys=['rs_scores_v1','rs_user_words_v1','rs_favorites_v1','rs_favorite_meta_v1','rs_deleted_words_v1'];
  function el(id){return document.getElementById(id);}
@@ -23,44 +24,84 @@
  function accountLabel(){var e=el('family-account-badge');if(e){e.hidden=!uid;e.textContent=email||'Мой аккаунт';}}
  function showGate(show){document.body.classList.toggle('family-locked',show);var gate=el('family-gate');if(gate)gate.hidden=!show;accountLabel();}
  function storageKey(k){return accountKey(k);}
- function makeSession(){writeRaw(KEY,stringify({uid:uid,email:email,refreshToken:refreshToken,idToken:token,expires:expires}));}
- function resetSession(){try{localStorage.removeItem(KEY);}catch(e){}uid='';email='';token='';refreshToken='';expires=0;}
+ function makeSession(){
+  // Store only account identity for offline UI. Firebase SDK owns its own secure auth persistence.
+  writeRaw(KEY,stringify({uid:uid,email:email}));
+ }
+ function resetSession(){try{localStorage.removeItem(KEY);}catch(e){}uid='';email='';token='';refreshToken='';expires=0;offlineRecovered=false;}
+ function doneLogin(){loginPending=false;if(loginTimer){clearTimeout(loginTimer);loginTimer=null;}var b=el('family-submit');if(b){b.disabled=false;b.textContent='Войти через Google';}}
+ function bootstrapAccount(user){
+  if(!user||!user.uid||!user.email)return;
+  var changed=uid!==user.uid;
+  uid=user.uid;email=user.email;offlineRecovered=false;makeSession();showGate(false);doneLogin();
+  if(changed){if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);if(window.RS_COMM)window.RS_COMM.onAuth();}
+  formMessage('Вход выполнен. Сеанс сохранён на этом устройстве.',false);
+  status('Аккаунт подключён. Облачные данные загружаются отдельно.',false);
+ }
+ function authErrorMessage(e){var c=e&&e.code||'';var msg=e&&e.message||String(e);
+  if(c==='auth/popup-blocked'||c==='auth/popup-closed-by-user'||c==='auth/operation-not-supported-in-this-environment')
+   return 'Вход не завершён: установленное веб-приложение может блокировать окно Google. Попробуй открыть сайт в обычном браузере. В браузере и приложении первый вход выполняется отдельно.';
+  if(c==='auth/unauthorized-domain')return 'Домен не разрешён в Firebase Authentication. Обратись к владельцу приложения.';
+  if(c==='auth/network-request-failed')return 'Нет связи с Firebase. Проверь интернет и попробуй ещё раз.';
+  return 'Google: '+msg;
+ }
+ function initFirebase(){
+  if(!window.firebase||!firebase.auth){
+   if(!navigator.onLine){var old=readJson(KEY,null);if(old&&old.uid&&old.email){uid=old.uid;email=old.email;offlineRecovered=true;showGate(false);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);status('Офлайн: сохранённые данные этого устройства',false);return;}}
+   formMessage('Firebase Authentication не загрузился. Проверь интернет, открой сайт в браузере и обнови страницу.',true);showGate(true);return;
+  }
+  try{
+   if(!firebase.apps.length)firebase.initializeApp({apiKey:config.apiKey,authDomain:config.authDomain||config.projectId+'.firebaseapp.com',projectId:config.projectId});
+   auth=firebase.auth();authStarting=true;
+   // Native Firebase LOCAL persistence restores a session after closing a browser or PWA.
+   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(e){
+     formMessage('Не удалось сохранить долгий сеанс: '+String(e.message||e)+'. Вход может потребоваться снова.',true);
+   });
+   auth.onAuthStateChanged(function(user){
+     authStarting=false;
+     if(user){bootstrapAccount(user);return;}
+     if(!navigator.onLine){var old=readJson(KEY,null);
+       if(old&&old.uid&&old.email){uid=old.uid;email=old.email;offlineRecovered=true;showGate(false);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);status('Офлайн: только сохранённые на этом устройстве данные',false);return;}
+     }
+     if(!loginPending){resetSession();showGate(true);formMessage('Войди через Google один раз в этом браузере или приложении. После этого сеанс будет сохраняться.',false);}
+   },function(e){authStarting=false;doneLogin();showGate(true);formMessage(authErrorMessage(e),true);});
+  }catch(e){authStarting=false;doneLogin();showGate(true);formMessage('Ошибка запуска Firebase: '+String(e.message||e),true);}
+ }
  function xhr(method,url,body,headers){return new Promise(function(resolve,reject){var x=new XMLHttpRequest();x.open(method,url,true);x.timeout=25000;Object.keys(headers||{}).forEach(function(k){x.setRequestHeader(k,headers[k]);});x.onreadystatechange=function(){if(x.readyState!==4)return;var out={code:x.status,data:null};try{out.data=JSON.parse(x.responseText);}catch(e){out.data={};}resolve(out);};x.onerror=function(){reject(new Error('Не удалось подключиться к серверу'));};x.ontimeout=function(){reject(new Error('Время ожидания истекло'));};x.send(body===undefined||body===null?null:body);});}
  function request(method,url,payload,auth){var h={};if(payload!==null&&payload!==undefined)h['Content-Type']='application/json';if(auth)h['Authorization']='Bearer '+auth;return xhr(method,url,payload===null?null:stringify(payload),h);}
  function authError(x){var c=x&&x.error&&x.error.message||'';var m={INVALID_LOGIN_CREDENTIALS:'Неверная почта или пароль',EMAIL_NOT_FOUND:'Аккаунт не найден',INVALID_PASSWORD:'Неверный пароль',USER_DISABLED:'Этот аккаунт отключён',TOO_MANY_ATTEMPTS_TRY_LATER:'Слишком много попыток. Попробуй позже',OPERATION_NOT_ALLOWED:'В Firebase не включён вход по паролю'};return m[c]||('Ошибка входа: '+c);}
- function useAuth(a){if(!a||!a.localId||!a.idToken||!a.refreshToken)throw Error('Сервер не подтвердил аккаунт');uid=a.localId;email=a.email||email||'';token=a.idToken;refreshToken=a.refreshToken;expires=now()+(Number(a.expiresIn)||3600)*1000;makeSession();showGate(false);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);status('Личный вход выполнен. Подключи Google Drive.',false);if(window.RS_COMM)window.RS_COMM.onAuth();}
+ function getToken(){
+  if(!auth||!auth.currentUser||auth.currentUser.uid!==uid)return Promise.reject(new Error('Для облачного доступа нужен вход через Google на этом устройстве'));
+  return auth.currentUser.getIdToken();
+ }
  function getEmailVerificationStatus(){
-  if(!uid)return Promise.reject(new Error('Сначала войди'));
-  return updateToken().then(function(t){return request('POST','https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(config.apiKey),{idToken:t});}).then(function(r){
-   if(r.code!==200)throw Error(authError(r.data));
-   var user=r.data&&r.data.users&&r.data.users[0];
-   if(!user||typeof user.emailVerified!=='boolean')throw Error('Firebase не сообщил статус подтверждения');
-   if(user.localId&&user.localId!==uid)throw Error('Ответ другого аккаунта');
-   return user.emailVerified===true;
+  if(!auth||!auth.currentUser)return Promise.reject(new Error('Сначала войди в аккаунт'));
+  return auth.currentUser.reload().then(function(){return !!auth.currentUser.emailVerified;});
+ }
+ function sendVerify(){
+  if(!auth||!auth.currentUser)return Promise.reject(new Error('Сначала войди в аккаунт'));
+  return auth.currentUser.reload().then(function(){
+   if(auth.currentUser.emailVerified)return true;
+   return auth.currentUser.sendEmailVerification().then(function(){return true;});
   });
  }
- function sendVerify(){if(!uid)return Promise.reject(new Error('Сначала войди'));return updateToken().then(function(t){return request('POST','https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key='+encodeURIComponent(config.apiKey),{requestType:'VERIFY_EMAIL',idToken:t});}).then(function(r){if(r.code!==200)throw Error(authError(r.data));return true;});}
  function login(evt){
   if(evt)evt.preventDefault();
-  if(!configured()){formMessage('Сначала настрой Firebase Web API Key и Project ID в config.js.',true);return;}
-  if(!navigator.onLine){formMessage('Для первого входа нужен интернет.',true);return;}
-  if(!window.firebase||!firebase.auth){formMessage('Модуль Firebase Authentication не загрузился. Проверь сеть и обнови страницу.',true);return;}
-  var btn=el('family-submit');if(btn)btn.disabled=true;
-  formMessage('Открываю вход через Google…',false);
-  try{
-   if(!firebase.apps.length)firebase.initializeApp({apiKey:config.apiKey,authDomain:config.authDomain||config.projectId+'.firebaseapp.com',projectId:config.projectId});
-   var provider=new firebase.auth.GoogleAuthProvider();
-   firebase.auth().signInWithPopup(provider).then(function(result){
-    var user=result.user;if(!user||!user.uid||!user.email)throw Error('Google не предоставил сведения об аккаунте.');
-    return user.getIdToken().then(function(t){return {localId:user.uid,email:user.email,idToken:t,refreshToken:user.refreshToken,expiresIn:3600};});
-   }).then(function(a){useAuth(a);formMessage('Вход выполнен через Google. Прогресс этого аккаунта изолирован.',false);})
-   .catch(function(e){formMessage('Вход через Google: '+String(e.message||e)+' (проверь разрешённые домены и всплывающие окна)',true);})
-   .then(function(){if(btn)btn.disabled=false;});
-  }catch(e){formMessage('Вход Google: '+String(e.message||e),true);if(btn)btn.disabled=false;}
+  if(loginPending)return;
+  if(!configured()){formMessage('Сначала настрой Firebase в config.js.',true);return;}
+  if(!navigator.onLine){formMessage('Для входа через Google нужен интернет.',true);return;}
+  if(!auth){formMessage('Модуль входа ещё не готов. Обнови страницу или открой сайт в браузере.',true);return;}
+  loginPending=true;var btn=el('family-submit');if(btn){btn.disabled=true;btn.textContent='Входим…';}
+  formMessage('Открываю вход через Google. Если окно не появится, проверь блокировку всплывающих окон.',false);
+  // Prevent an iOS PWA from becoming a permanently disabled screen if the OAuth popup stalls.
+  loginTimer=setTimeout(function(){if(loginPending){doneLogin();formMessage('Вход через Google не завершён. Попробуй снова или открой сайт в обычном браузере. Данные не удалены.',true);}},25000);
+  var provider=new firebase.auth.GoogleAuthProvider();
+  try{auth.signInWithPopup(provider).then(function(result){
+   if(result&&result.user)bootstrapAccount(result.user);
+  }).catch(function(e){doneLogin();formMessage(authErrorMessage(e),true);});}
+  catch(e){doneLogin();formMessage(authErrorMessage(e),true);}
  }
- function updateToken(){if(!refreshToken)return Promise.reject(new Error('Нужен повторный вход'));if(token&&expires>now()+120000)return Promise.resolve(token);
- var form='grant_type=refresh_token&refresh_token='+encodeURIComponent(refreshToken);
- return xhr('POST','https://securetoken.googleapis.com/v1/token?key='+encodeURIComponent(config.apiKey),form,{'Content-Type':'application/x-www-form-urlencoded'}).then(function(r){if(r.code!==200)throw Error('Истёк сеанс. Войди в аккаунт снова.');token=r.data.id_token;refreshToken=r.data.refresh_token;expires=now()+(Number(r.data.expires_in)||3600)*1000;makeSession();return token;}); }
+ function updateToken(){return getToken();}
  function empty(){return {schema:1,scores:{},words:{},favorites:{},scope:{value:'mine',updatedAt:0}};}
  function mergeScores(a,b){var m={},k; a=a||{};b=b||{};Object.keys(a).concat(Object.keys(b)).forEach(function(id){if(m[id])return;var x=a[id]||{},y=b[id]||{};m[id]={correct:Math.max(Number(x.correct)||0,Number(y.correct)||0),wrong:Math.max(Number(x.wrong)||0,Number(y.wrong)||0),seen:Math.max(Number(x.seen)||0,Number(y.seen)||0),last:Math.max(Number(x.last)||0,Number(y.last)||0)};});return m;}
  function mergeRecords(a,b){a=a||{};b=b||{};var m={};Object.keys(a).concat(Object.keys(b)).forEach(function(id){if(Object.prototype.hasOwnProperty.call(m,id))return;var x=a[id],y=b[id];m[id]=!x?y:!y?x:(Number(x.updatedAt)||0)>=(Number(y.updatedAt)||0)?x:y;});return m;}
@@ -77,7 +118,15 @@
  if(ok&&window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);return ok; }
  function sync(){if(!uid)return Promise.resolve(false); if(window.RS_COMM){return window.RS_COMM.sync();}status('Подключи собственный Google Drive в разделе «Данные»',false);return Promise.resolve(false);}
  function schedule(){if(!uid)return;if(window.RS_COMM)window.RS_COMM.onLocalChange();}
- function logout(){if(!window.confirm('Выйти из личного аккаунта? Данные останутся на устройстве. Для повторного входа нужен интернет.'))return;try{if(window.firebase&&firebase.apps.length)firebase.auth().signOut();}catch(ignored){}resetSession();showGate(true);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);if(window.RS_COMM)window.RS_COMM.onLogout();status('Выход выполнен',false);formMessage('Вы вышли из аккаунта. Для нового входа нажми «Войти через Google».',false);}
+ function logout(){
+  if(!window.confirm('Выйти из этого устройства? Локальные учебные данные останутся сохранены, но для повторного входа понадобится интернет.'))return;
+  var previous=auth;
+  if(previous)previous.signOut().catch(function(e){formMessage('Ошибка выхода: '+String(e.message||e),true);});
+  resetSession();doneLogin();showGate(true);
+  if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);
+  if(window.RS_COMM)window.RS_COMM.onLogout();
+  status('Выход выполнен',false);formMessage('Ты вышел из аккаунта.',false);
+ }
  function sharedEnabled(){var s=getLocal('rs_family_scope_v1',{value:'mine'});return !!(uid&&s&&s.value==='all');}
  function setScope(v){if(!uid)return;putLocal('rs_family_scope_v1',{value:v==='all'?'all':'mine',updatedAt:now()});if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);schedule();}
  function migrate(){if(!uid)return;var imported=false,existing=getState(),legacy=empty();
@@ -91,12 +140,12 @@
  legacy.scope={value:'all',updatedAt:now()};var m=mergeData(existing,legacy);if(!putState(m)){status('Ошибка сохранения перенесённых данных',true);return;}schedule();var d=el('family-migrate-state');if(d)d.textContent='Прежние результаты скопированы. Синхронизация выполняется при наличии интернета.';status('Старые данные перенесены; ожидается синхронизация',false);}
  function init(){
   var f=el('family-login-form');if(f)f.addEventListener('submit',login);
-  if(!configured()){var w=el('family-setup-warning');if(w)w.hidden=false;formMessage('Сначала администратор должен настроить Firebase проект.',true);showGate(true);return;}
- var sess=readJson(KEY,null);if(sess&&sess.uid&&sess.refreshToken){uid=sess.uid;email=sess.email||'';token=sess.idToken||'';refreshToken=sess.refreshToken||'';expires=Number(sess.expires)||0;showGate(false);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);if(window.RS_COMM)window.RS_COMM.onAuth();if(!navigator.onLine)status('Офлайн — личные данные на этом устройстве',false);}else showGate(true);
- window.addEventListener('online',function(){if(uid)sync();});window.addEventListener('rs:datachange',schedule);
- document.addEventListener('visibilitychange',function(){if(!document.hidden&&uid&&navigator.onLine&&now()-lastSync>120000)sync();});
- setInterval(function(){if(uid&&navigator.onLine&&now()-lastSync>120000)sync();},120000);
+  if(!configured()){var w=el('family-setup-warning');if(w)w.hidden=false;formMessage('Администратор должен настроить Firebase.',true);showGate(true);return;}
+  showGate(true);formMessage('Проверяю сохранённый вход…',false);
+  initFirebase();
+  window.addEventListener('online',function(){if(uid&&auth&&auth.currentUser)sync();});
+  window.addEventListener('rs:datachange',schedule);
  }
- window.RS_FAMILY={storageKey:storageKey,get uid(){return uid;},get email(){return email;},getToken:updateToken,getEmailVerificationStatus:getEmailVerificationStatus,sendVerify:sendVerify,sharedEnabled:sharedEnabled,setScope:setScope,statusText:function(){return lastStatus;},sync:sync,schedule:schedule,logout:logout,migrate:migrate};
+ window.RS_FAMILY={storageKey:storageKey,get uid(){return uid;},get email(){return email;},getToken:getToken,getEmailVerificationStatus:getEmailVerificationStatus,sendVerify:sendVerify,sharedEnabled:sharedEnabled,setScope:setScope,statusText:function(){return lastStatus;},sync:sync,schedule:schedule,logout:logout,migrate:migrate};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
