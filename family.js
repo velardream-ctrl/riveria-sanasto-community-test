@@ -1,4 +1,4 @@
-/* Riveria Sanasto Community 2.0.1
+/* Riveria Sanasto Community 2.0.2
    Firebase Google Sign-in via browser popup (compat SDK) with Firebase REST tokens.
    Per-UID local storage. Actual compatibility with Safari iOS 12 requires live testing.
    No shared Apps Script key.
@@ -29,6 +29,16 @@
  function request(method,url,payload,auth){var h={};if(payload!==null&&payload!==undefined)h['Content-Type']='application/json';if(auth)h['Authorization']='Bearer '+auth;return xhr(method,url,payload===null?null:stringify(payload),h);}
  function authError(x){var c=x&&x.error&&x.error.message||'';var m={INVALID_LOGIN_CREDENTIALS:'Неверная почта или пароль',EMAIL_NOT_FOUND:'Аккаунт не найден',INVALID_PASSWORD:'Неверный пароль',USER_DISABLED:'Этот аккаунт отключён',TOO_MANY_ATTEMPTS_TRY_LATER:'Слишком много попыток. Попробуй позже',OPERATION_NOT_ALLOWED:'В Firebase не включён вход по паролю'};return m[c]||('Ошибка входа: '+c);}
  function useAuth(a){if(!a||!a.localId||!a.idToken||!a.refreshToken)throw Error('Сервер не подтвердил аккаунт');uid=a.localId;email=a.email||email||'';token=a.idToken;refreshToken=a.refreshToken;expires=now()+(Number(a.expiresIn)||3600)*1000;makeSession();showGate(false);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);status('Личный вход выполнен. Подключи Google Drive.',false);if(window.RS_COMM)window.RS_COMM.onAuth();}
+ function getEmailVerificationStatus(){
+  if(!uid)return Promise.reject(new Error('Сначала войди'));
+  return updateToken().then(function(t){return request('POST','https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(config.apiKey),{idToken:t});}).then(function(r){
+   if(r.code!==200)throw Error(authError(r.data));
+   var user=r.data&&r.data.users&&r.data.users[0];
+   if(!user||typeof user.emailVerified!=='boolean')throw Error('Firebase не сообщил статус подтверждения');
+   if(user.localId&&user.localId!==uid)throw Error('Ответ другого аккаунта');
+   return user.emailVerified===true;
+  });
+ }
  function sendVerify(){if(!uid)return Promise.reject(new Error('Сначала войди'));return updateToken().then(function(t){return request('POST','https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key='+encodeURIComponent(config.apiKey),{requestType:'VERIFY_EMAIL',idToken:t});}).then(function(r){if(r.code!==200)throw Error(authError(r.data));return true;});}
  function login(evt){
   if(evt)evt.preventDefault();
@@ -51,8 +61,6 @@
  function updateToken(){if(!refreshToken)return Promise.reject(new Error('Нужен повторный вход'));if(token&&expires>now()+120000)return Promise.resolve(token);
  var form='grant_type=refresh_token&refresh_token='+encodeURIComponent(refreshToken);
  return xhr('POST','https://securetoken.googleapis.com/v1/token?key='+encodeURIComponent(config.apiKey),form,{'Content-Type':'application/x-www-form-urlencoded'}).then(function(r){if(r.code!==200)throw Error('Истёк сеанс. Войди в аккаунт снова.');token=r.data.id_token;refreshToken=r.data.refresh_token;expires=now()+(Number(r.data.expires_in)||3600)*1000;makeSession();return token;}); }
- function endpoint(){return 'https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(config.projectId)+'/databases/(default)/documents/profiles/'+encodeURIComponent(uid);}
- function getDocument(){return updateToken().then(function(t){return request('GET',endpoint(),null,t);}).then(function(r){if(r.code===404)return {state:empty(),updateTime:null};if(r.code!==200)throw Error('Firestore: '+(r.data&&r.data.error&&r.data.error.message||r.code));var str=r.data.fields&&r.data.fields.payload&&r.data.fields.payload.stringValue;var data=empty();if(str){try{data=JSON.parse(str);}catch(e){throw Error('Повреждённые данные облака — запись отменена');}}return {state:data,updateTime:r.data.updateTime||null};});}
  function empty(){return {schema:1,scores:{},words:{},favorites:{},scope:{value:'mine',updatedAt:0}};}
  function mergeScores(a,b){var m={},k; a=a||{};b=b||{};Object.keys(a).concat(Object.keys(b)).forEach(function(id){if(m[id])return;var x=a[id]||{},y=b[id]||{};m[id]={correct:Math.max(Number(x.correct)||0,Number(y.correct)||0),wrong:Math.max(Number(x.wrong)||0,Number(y.wrong)||0),seen:Math.max(Number(x.seen)||0,Number(y.seen)||0),last:Math.max(Number(x.last)||0,Number(y.last)||0)};});return m;}
  function mergeRecords(a,b){a=a||{};b=b||{};var m={};Object.keys(a).concat(Object.keys(b)).forEach(function(id){if(Object.prototype.hasOwnProperty.call(m,id))return;var x=a[id],y=b[id];m[id]=!x?y:!y?x:(Number(x.updatedAt)||0)>=(Number(y.updatedAt)||0)?x:y;});return m;}
@@ -67,9 +75,6 @@
  Object.keys(x.favorites||{}).forEach(function(id){var v=x.favorites[id];if(v){fav[id]=!!v.starred;fm[id]={starred:!!v.starred,updatedAt:Number(v.updatedAt)||1};}});
  var ok=putLocal('rs_scores_v1',x.scores||{})&&putLocal('rs_user_words_v1',words)&&putLocal('rs_favorites_v1',fav)&&putLocal('rs_favorite_meta_v1',fm)&&putLocal('rs_deleted_words_v1',deleted)&&putLocal('rs_family_scope_v1',x.scope||{value:'mine',updatedAt:0});
  if(ok&&window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);return ok; }
- function saveDoc(data,updateTime){var raw=stringify(data);if(raw.length>350000)return Promise.reject(new Error('Превышен объём данных аккаунта: сделай резервную копию'));var url=endpoint()+'?'+(updateTime?'currentDocument.updateTime='+encodeURIComponent(updateTime):'currentDocument.exists=false');
- var fields={payload:{stringValue:raw},schema:{integerValue:'1'},updatedAt:{integerValue:String(now())}};
- return updateToken().then(function(t){return request('PATCH',url,{fields:fields},t);}).then(function(r){if(r.code===200)return {ok:true};if([400,409,412,409].indexOf(r.code)>=0)return {conflict:true};throw Error('Не удалось сохранить в облако: '+(r.data&&r.data.error&&r.data.error.message||r.code));}); }
  function sync(){if(!uid)return Promise.resolve(false); if(window.RS_COMM){return window.RS_COMM.sync();}status('Подключи собственный Google Drive в разделе «Данные»',false);return Promise.resolve(false);}
  function schedule(){if(!uid)return;if(window.RS_COMM)window.RS_COMM.onLocalChange();}
  function logout(){if(!window.confirm('Выйти из личного аккаунта? Данные останутся на устройстве. Для повторного входа нужен интернет.'))return;try{if(window.firebase&&firebase.apps.length)firebase.auth().signOut();}catch(ignored){}resetSession();showGate(true);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(true);if(window.RS_COMM)window.RS_COMM.onLogout();status('Выход выполнен',false);formMessage('Вы вышли из аккаунта. Для нового входа нажми «Войти через Google».',false);}
@@ -92,6 +97,6 @@
  document.addEventListener('visibilitychange',function(){if(!document.hidden&&uid&&navigator.onLine&&now()-lastSync>120000)sync();});
  setInterval(function(){if(uid&&navigator.onLine&&now()-lastSync>120000)sync();},120000);
  }
- window.RS_FAMILY={storageKey:storageKey,get uid(){return uid;},get email(){return email;},getToken:updateToken,sendVerify:sendVerify,sharedEnabled:sharedEnabled,setScope:setScope,statusText:function(){return lastStatus;},sync:sync,schedule:schedule,logout:logout,migrate:migrate};
+ window.RS_FAMILY={storageKey:storageKey,get uid(){return uid;},get email(){return email;},getToken:updateToken,getEmailVerificationStatus:getEmailVerificationStatus,sendVerify:sendVerify,sharedEnabled:sharedEnabled,setScope:setScope,statusText:function(){return lastStatus;},sync:sync,schedule:schedule,logout:logout,migrate:migrate};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();

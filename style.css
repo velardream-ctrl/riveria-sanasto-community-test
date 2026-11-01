@@ -19,3 +19,6 @@ body.family-locked .shell,body.family-locked .mobile-nav {visibility:hidden}
 /* Community: keep screens usable on old iPad and mobile */
 [data-view="users"], [data-view="libraries"]{white-space:normal}
 @media(max-width:750px){#community-name,#comm-publish-title{max-width:100%}.panel .btn-row{flex-wrap:wrap}}
+
+/* Community 2.0.3 */
+.operation-status{display:block;margin:13px 0;padding:12px 14px;border:1px solid #bfdde8;border-radius:12px;background:#f0f8fb;color:#23546c;font-weight:600;overflow-wrap:anywhere;line-height:1.5}.operation-status.working{border-color:#b7d6e8;background:#edf7ff;color:#225576}.operation-status.success{border-color:#9fdbb8;background:#edfaf1;color:#205f40}.operation-status.warning{border-color:#e7cf99;background:#fff8e7;color:#805a13}.operation-status.error{border-color:#edb9b9;background:#fff2f2;color:#963535}.btn[disabled]{opacity:.65;cursor:wait}
