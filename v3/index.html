@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Sanastoyhteisö 3.0 — изолированная демонстрация</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+--ink:#123b50;--muted:#536d7d;--line:#d5e7ed;--blue:#08688d;--soft:#e9f6fa;--bg:#f5f9fb;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.5}
+header{background:linear-gradient(115deg,#0b4861,#146d89);color:#fff;padding:22px max(18px,calc((100vw - 980px)/2));}
+header small{display:block;color:#d3ebf3;font-weight:650;text-transform:uppercase;letter-spacing:.07em}
+header h1{margin:5px 0;font-size:clamp(23px,4vw,32px);line-height:1.2}
+header p{max-width:790px;margin:5px 0;color:#ecf6f9}
+.demo-ribbon{background:#fff3cf;color:#543d08;border-left:4px solid #ae7b08;padding:11px 15px;margin:20px 0;border-radius:5px}
+.wrap{width:min(100% - 36px,980px);margin:0 auto 50px}
+.demo-toolbar{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0}
+.demo-toolbar label{font-weight:650;display:flex;align-items:center;gap:10px}
+select,input{font:inherit;padding:11px;border:1px solid #91b8c6;border-radius:8px;max-width:100%;background:#fff;color:var(--ink)}
+#demo-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.demo-tab,button{font:inherit;cursor:pointer;border:1px solid #a5c8d4;background:#fff;color:var(--ink);border-radius:10px;padding:10px 15px}
+.demo-tab.selected,button.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+button:hover{filter:brightness(.95)}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #edb84c;outline-offset:2px}
+#demo-metrics{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}
+#demo-metrics span{border:1px solid var(--line);padding:6px 13px;border-radius:999px;background:#fff;font-size:14px}
+#demo-content{min-height:280px}
+#demo-content>section,.demo-card{padding:23px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 3px 12px #10364b0c;margin:12px 0}
+.demo-card small{color:var(--muted)}.demo-card h2{font-size:clamp(28px,6vw,42px);margin:14px 0 4px}
+.demo-card p{font-size:19px}.demo-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.demo-add{margin-top:18px!important}.demo-add h2{margin-top:0;font-size:21px}
+#demo-word-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+#demo-word-form label{font-weight:550}#demo-word-form input{display:block;width:100%;margin-top:6px}
+#demo-word-form button{grid-column:1/-1;justify-self:start}
+#demo-search{display:block;width:100%;margin:7px 0 15px}
+#demo-results{padding-left:22px}#demo-results li{padding:8px 0;border-bottom:1px solid var(--line)}
+.demo-muted{color:var(--muted);font-size:14px}.demo-warning{background:#fff3cf;border-left:4px solid #ad7700;padding:12px;border-radius:4px}
+#demo-status{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:11px 14px;margin:16px 0;min-height:46px}
+.rs-admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.rs-admin-tile{padding:14px;border-radius:10px;border:1px solid var(--line);background:#f5fbfd}
+.rs-admin-tile strong{display:block;font-size:14px}.rs-admin-tile p{font-size:24px;font-weight:700;margin:9px 0 0;overflow-wrap:anywhere}
+footer{font-size:13px;color:var(--muted);text-align:center;padding:20px;border-top:1px solid var(--line)}
+@media(max-width:680px){.rs-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#demo-word-form{grid-template-columns:1fr}header{padding:22px 18px}}
+@media(max-width:400px){.rs-admin-grid{grid-template-columns:1fr}#demo-tabs{gap:5px}.demo-tab{padding:8px 10px;font-size:14px}}
+</style>
+</head>
+<body>
+<header>
+<small>Sanastoyhteisö • staging only • FI / RU / EN</small>
+<h1 id="demo-heading">Тестовая версия 3.0</h1>
+<p id="demo-note">Публичный учебный словарь, но только вымышленные результаты. Действующий сайт не меняется.</p>
+</header>
+<div class="wrap">
+<div class="demo-ribbon"><strong>DEMO ONLY / VAIN TESTI / ТОЛЬКО ДЕМО</strong> — The FI/RU/EN vocabulary is a public snapshot copied from the existing published dictionary. Accounts, answers and personal words are DEMO ONLY. No Firebase, Firestore or Google Drive connection. No data is sent to a server. Synthetic answers stay in a separate IndexedDB.</div>
+<div class="demo-toolbar">
+<label for="demo-language">FI / RU / EN
+<select id="demo-language"><option value="ru">Русский</option><option value="fi">Suomi</option><option value="en">English</option></select>
+</label>
+</div>
+<nav id="demo-tabs" aria-label="Sanastoyhteisö demo sections"></nav>
+<div id="demo-metrics" aria-label="Demonstration metrics"></div>
+<p id="demo-status" role="status" aria-live="polite">Opening synthetic storage…</p>
+<main id="demo-content" tabindex="-1">Opening demo storage…</main>
+</div>
+<footer>Sanastoyhteisö 3.0 isolated preview — the published website is unchanged. This is a prototype, not a verified migration or live administrator login.</footer>
+<script src="data-public.js"></script>
+<script src="rs-v3-public-catalog.js"></script>
+<script src="rs-sync-core.js"></script>
+<script src="rs-sync-shadow-idb.js"></script>
+<script src="rs-sync-shadow-reconcile.js"></script>
+<script src="rs-sync-recovery-audit.js"></script>
+<script src="rs-admin-preview.js"></script>
+<script src="rs-v3-demo.js"></script>
+</body>
+</html>
