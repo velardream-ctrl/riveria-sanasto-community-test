@@ -21,10 +21,28 @@
    schedule:none,sync:notify,logout:notify,migrate:notify,
    setScope:none
  };
+ var model=w.RS_V3_LIBRARY_MODEL.create({
+   storage:w.localStorage,key:prefix+'rs_libraries_v1',crypto:w.crypto
+ });
+ var libraries=w.RS_DEMO_LIBRARIES.create({
+   model:model,document:w.document,
+   readOwnWords:function(){
+     var raw=w.localStorage.getItem(prefix+'rs_user_words_v1');
+     if(!raw)return [];
+     try{var words=JSON.parse(raw);return Array.isArray(words)?words:[];}
+     catch(ignore){return [];}
+   }
+ });
  w.RS_COMM={
-   subscribedTerms:function(){return [];},
-   renderLibrary:function(el){el.innerHTML='<div class="panel"><h2>Библиотека</h2>'+
-     '<p>Тестовая версия: публичный словарь включён. Облачная библиотека отключена.</p></div>';},
+   subscribedTerms:function(){
+     try{return libraries.subscribedTerms();}
+     catch(ignore){return [];} // corrupt library store never overwrites learning data
+   },
+   renderLibrary:function(el){
+     try{libraries.render(el);}
+     catch(err){el.innerHTML='<div class="panel"><h2>Library demo</h2>'+
+       '<p>Test library storage needs inspection; data was not overwritten.</p></div>';}
+   },
    renderUsers:function(el){el.innerHTML='<div class="panel"><h2>Пользователи</h2>'+
      '<p>Здесь нет реальных аккаунтов или пользовательских данных. Тестовая сборка работает локально.</p></div>';},
    dataPanel:function(){
