@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://accounts.google.com; connect-src https://firestore.googleapis.com https://firebase.googleapis.com https://firebaseinstallations.googleapis.com https://apis.google.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://www.gstatic.com https://www.google.com https://accounts.google.com https://sanastoyhteiso-v3-development.firebaseapp.com; frame-src https://sanastoyhteiso-v3-development.firebaseapp.com https://accounts.google.com https://apis.google.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Sanastoyhteisö V3 — старый iPad / профиль</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f8fa;color:#193a4d;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}main{max-width:700px;margin:auto;padding:20px 16px 90px}h1{font-size:26px;line-height:1.2}h2{font-size:20px}.card{border:1px solid #c8e1e9;border-radius:16px;background:white;padding:20px;margin:15px 0}button{font-family:inherit;font-size:16px;font-weight:700;min-height:48px;border:1px solid #9bc5d5;border-radius:11px;padding:10px;background:#e2f5fa;color:#174458;margin:5px 7px 5px 0}button:disabled{opacity:.45}button:focus-visible,a:focus-visible{outline:3px solid #c88700;outline-offset:2px}a{color:#205d76}.state{font-weight:bold;overflow-wrap:anywhere}.notice{background:#fff8e4;border:1px solid #efd593;border-radius:10px;padding:14px}.small{font-size:13px;color:#4d7080}.error{color:#993030}.ok{color:#14683d}
+</style></head><body><main>
+<a href="./">Вернуться к проверке Google-входа</a>
+<section class="card"><h1>Личный профиль: тест для старого iPad</h1>
+<p class="notice"><strong>Режим совместимости: Firebase JS 8.10.1 для Safari iOS 12.</strong> Используется только новый Firebase <strong>sanastoyhteiso-v3-development</strong>. Эта страница не читает результаты действующего сайта и не переносит старые словари. Профиль создаётся только по твоему нажатию.</p>
+<p>Google-вход: <span class="state" id="auth-status">Загрузка…</span></p>
+<button type="button" id="login" disabled>Войти через Google</button><button type="button" id="logout" disabled>Выйти</button>
+<p class="state" role="status" aria-live="polite" id="message"></p></section>
+<section class="card"><h2>Проверка своего профиля</h2>
+<button type="button" id="read" disabled>Прочитать профиль</button>
+<button type="button" id="register" disabled>Создать тестовый профиль</button>
+<p class="small">Сохраняются только псевдоним, закрытый по умолчанию профиль, ноль выученных терминов и время создания. Повторная регистрация не обнуляет существующий профиль.</p>
+<p>Результат: <span class="state" id="profile-status">Не проверен</span></p>
+<div id="profile" hidden><p>Псевдоним: <strong id="alias"></strong></p><p>Выучено: <strong id="learned"></strong></p><p>Статистика: <strong id="visibility"></strong></p></div></section>
+<section class="card"><h2>Проверка защиты на сервере</h2>
+<p>Только чтение заранее вымышленного чужого UID. Настоящие чужие аккаунты не используются, содержание документов не показывается.</p>
+<button type="button" id="deny" disabled>Проверить отказ чужому UID</button>
+<p class="state" id="deny-status">Не проверено</p></section>
+<p class="small">Это пилот регистрации, а не новая синхронизация обучения. При ошибке не меняй правила Firebase вручную.</p>
+</main>
+<script defer src="config.js"></script>
+<script defer src="guard.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script defer src="adapter.js"></script><script defer src="controller.js"></script>
+<script defer src="profile-contract.js"></script><script defer src="profile-store.js"></script>
+<script defer src="profile-legacy-pilot.js?v=safari12-compat-1"></script>
+</body></html>
