@@ -20,6 +20,7 @@
     signed_out:'Вход не выполнен',unverified:'Email не подтверждён',verified:'Вход подтверждён',
     error:'Ошибка входа',startError:'Не удалось загрузить модуль Firebase',
     popupBlocked:'Браузер блокирует вход через всплывающее окно. Открой страницу в обычном браузере и разреши всплывающее окно.',
+    internalError:'Не удалось завершить Google-вход. Если ты открыл страницу внутри ChatGPT или другого приложения, скопируй адрес и открой его в обычном Safari. Если ошибка повторяется в Safari, сообщи код auth/internal-error.',
     providerMissing:'В новом Firebase включи Authentication → Sign-in method → Google, затем добавь домен velardream-ctrl.github.io в Authorized domains.',
     disabled:'Включи Google Sign-in в новом Firebase; после этого можно проверять вход.',
     back:'Вернуться к тестовому Sanastoyhteisö',explain:'Это отдельная проверочная страница, основной сайт не изменён.'},
@@ -31,6 +32,7 @@
     signed_out:'Ei kirjautunut',unverified:'Sähköpostia ei vahvistettu',verified:'Kirjautuminen vahvistettu',
     error:'Kirjautumisvirhe',startError:'Firebase-moduulia ei voitu ladata',
     popupBlocked:'Ponnahdusikkuna estettiin. Avaa sivu selaimessa.',
+    internalError:'Google-kirjautuminen epäonnistui. Jos sivu on sovelluksen sisäisessä selaimessa, avaa osoite suoraan Safarissa. Jos virhe jatkuu, ilmoita koodi auth/internal-error.',
     providerMissing:'Ota Google-kirjautuminen käyttöön uuden Firebase-projektin Authentication-asetuksissa ja lisää velardream-ctrl.github.io sallittuihin verkkotunnuksiin.',
     disabled:'Ota Google-kirjautuminen käyttöön ennen testiä.',
     back:'Takaisin testisanastoon',explain:'Tämä on erillinen testi, vanhaa sivustoa ei muutettu.'},
@@ -42,6 +44,7 @@
     signed_out:'Signed out',unverified:'Email not verified',verified:'Signed in and verified',
     error:'Sign-in error',startError:'Could not initialize Firebase module',
     popupBlocked:'Popup blocked. Open the page in a regular browser and allow popups.',
+    internalError:'Google sign-in did not complete. If this page is inside another app, copy its URL and open it directly in Safari. If Safari also fails, report code auth/internal-error.',
     providerMissing:'Enable Authentication → Sign-in method → Google in NEW Firebase project. Add velardream-ctrl.github.io to Authorized domains.',
     disabled:'Enable the Google provider in the new Firebase project before testing.',
     back:'Back to demo Sanastoyhteisö',explain:'This is a separate test page. The production site is unchanged.'}
@@ -50,6 +53,7 @@
  function setText(id,value){var node=el(id);if(node)node.textContent=value;}
  function t(key){return words[currentLang][key]||key;}
  function msg(code){
+   if(code==='auth/internal-error')return t('internalError');
    if(code==='auth/popup-blocked'||code==='auth/popup-closed-by-user'||
       code==='auth/cancelled-popup-request')return t('popupBlocked');
    if(code==='auth/unauthorized-domain'||code==='auth/operation-not-allowed'||
