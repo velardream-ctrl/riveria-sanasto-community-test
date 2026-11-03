@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#e9f7fa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Sanasto">
+  <meta name="description" content="Sanastoyhteisö — учебное сообщество для изучения финского языка: словарь Riveria, карточки и тренировка Mediatri.">
+  <link rel="apple-touch-icon" href="../icon-192.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="stylesheet" href="style.css?v=3.0-test">
+  <title>Sanastoyhteisö — Riveria Sanasto Community</title>
+<style>
+/* Compact homepage links: works on desktop, iPhone and iPad; no extra toolbar. */
+.rs-home-control,.rs-heading-home{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;text-align:left;cursor:pointer;}
+.rs-home-control{width:100%;display:flex;align-items:center;gap:10px;}
+.rs-home-control span:last-child{display:flex;flex-direction:column;align-items:flex-start;}
+.rs-heading-home{display:block;max-width:100%;}
+.rs-heading-home h1{margin-top:0;}
+.rs-home-control:focus-visible,.rs-heading-home:focus-visible{outline:3px solid #177e99;outline-offset:4px;border-radius:5px;}
+#home-update-status{font-size:12px;max-width:270px;white-space:normal;}
+/* Public policy links remain visible on the signed-out Google login screen. */
+.rs-info-links{display:flex;gap:8px 15px;flex-wrap:wrap;align-items:center;font-size:13px;line-height:1.5;margin:13px 0 1px;}
+.rs-info-links a{color:#176d86;text-decoration:underline;text-underline-offset:3px;}
+.rs-info-links a:focus-visible{outline:2px solid #176d86;outline-offset:3px;}
+.rs-info-footer{display:flex;justify-content:center;gap:10px 17px;flex-wrap:wrap;margin-top:7px;}
+
+/* FI/EN/RU entry screen: visible without Google sign-in, Safari iOS 12 compatible. */
+.rs-login-languages{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 23px}
+.rs-login-languages button{font:inherit;font-size:14px;font-weight:650;border-radius:20px;border:1px solid #b2d6e0;background:#fff;color:#193e50;padding:8px 14px;cursor:pointer}
+.rs-login-languages button[aria-pressed="true"]{background:#156b84;border-color:#156b84;color:white}
+.rs-login-languages button:focus-visible{outline:3px solid #146d85;outline-offset:3px}
+.rs-ui-locale{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:5px 0 10px;font-size:13px;color:#516c78}
+.rs-ui-locale select{font:inherit;background:white;color:#1c4051;border:1px solid #aacddd;border-radius:9px;padding:8px 10px;max-width:205px}
+.rs-ui-locale select:focus-visible{outline:3px solid #1a829d;outline-offset:2px}
+.rs-i18n-note{font-size:13px;border-left:3px solid #83b8ce;padding:7px 11px;margin:8px 0;color:#446373;background:#f0f8fa}
+
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Разделы приложения">
+    <button type="button" id="brand-home-button" class="brand rs-home-control" title="На главную — к карточкам"><span class="brand-symbol">✚</span><span><b>Riveria Sanasto</b><small>Community • FI / RU / EN</small></span></button>
+    <div class="side-intro">Слова для учёбы и работы</div>
+    <nav id="side-nav">
+      <button class="nav-item active" data-view="cards"><span>▣</span> Карточки <small>Kortit</small></button>
+      <button class="nav-item" data-view="practice"><span>◈</span> Тесты <small>Harjoitus</small></button>
+      <button class="nav-item" data-view="dictionary"><span>▤</span> Словарь <small>Sanasto</small></button>
+      <button class="nav-item" data-view="mediatri"><span>✎</span> Mediatri <small>Kirjaaminen</small></button>
+      <button class="nav-item" data-view="add"><span>＋</span> Новое слово <small>Lisää sana</small></button>
+      <button class="nav-item" data-view="libraries"><span>▤</span> Библиотека <small>Kirjastot</small></button>
+      <button class="nav-item" data-view="users"><span>♙</span> Пользователи <small>Käyttäjät</small></button>
+      <button class="nav-item" data-view="backup"><span>⇄</span> Данные <small>Varmuuskopio</small></button>
+    </nav>
+    <div class="side-bottom"><div class="care-icon">♡</div><div>Учимся небольшими шагами<br>— каждый день</div></div>
+  </aside>
+  <div class="main-column">
+    <header class="topbar">
+      <div><div id="heading-home-button" class="rs-heading-home" role="button" tabindex="0" title="На главную — к карточкам"><span class="eyebrow">TERVETULOA OPISKELEMAAN!</span><h1 id="page-title">Изучаем финский</h1></div><p id="page-subtitle">Термины и фразы, которые пригодятся на практике.</p><p id="rs-english-pending" class="rs-i18n-note" hidden>Английские переводы составлены автоматически и могут содержать ошибки. Особенно проверяйте медицинские термины.</p></div>
+      <div class="header-badges"><nav class="rs-lang-switch" aria-label="Language / Kieli / Язык"><button type="button" data-login-lang="fi" aria-pressed="false">FI</button><button type="button" data-login-lang="en" aria-pressed="false">EN</button><button type="button" data-login-lang="ru" aria-pressed="false">RU</button></nav><span id="home-update-status" class="status muted" role="status" aria-live="polite" hidden></span><span class="account-badge" id="family-account-badge" hidden></span><span class="status" id="online-status">● Проверка связи</span><span class="status muted" id="storage-status">Проверка сохранения</span></div>
+    </header>
+    <div class="rs-demo-ribbon" role="note">TEST 3.0 / Тестовая копия прежнего интерфейса: все результаты вымышленные; без входа и облачной синхронизации.</div>
+    <main id="main-content" tabindex="-1">
+      <div class="load-box">Открываю базу слов…</div>
+    </main>
+    <footer>Sanastoyhteisö 3.0 Classic TEST • Только учебные примеры. Не вводите настоящие данные пациентов.
+      <nav class="rs-info-footer" aria-label="Информация о проекте"><a href="about.html">О проекте</a><a href="privacy.html">Конфиденциальность</a><a href="terms.html">Условия использования</a></nav>
+    </footer>
+  </div>
+</div>
+<nav class="mobile-nav" aria-label="Разделы приложения — листай влево и вправо">
+  <button type="button" id="mobile-nav-prev" class="mobile-nav-arrow" aria-label="Прокрутить меню влево" title="Предыдущие разделы">‹</button>
+  <div class="mobile-nav-scroll" id="mobile-nav-scroll" role="group" aria-label="Прокручиваемое меню разделов">
+    <button type="button" class="mobile-item active" data-view="cards"><span>▣</span>Карточки</button>
+    <button type="button" class="mobile-item" data-view="practice"><span>◈</span>Тесты</button>
+    <button type="button" class="mobile-item" data-view="dictionary"><span>▤</span>Словарь</button>
+    <button type="button" class="mobile-item" data-view="mediatri"><span>✎</span>Mediatri</button>
+    <button type="button" class="mobile-item" data-view="add"><span>＋</span>Новое слово</button>
+    <button type="button" class="mobile-item" data-view="libraries"><span>▧</span>Библиотека</button>
+    <button type="button" class="mobile-item" data-view="users"><span>♙</span>Пользователи</button>
+    <button type="button" class="mobile-item" data-view="backup"><span>⇄</span>Данные</button>
+  </div>
+  <button type="button" id="mobile-nav-next" class="mobile-nav-arrow" aria-label="Прокрутить меню вправо" title="Следующие разделы">›</button>
+</nav>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="data-public.js"></script>
+<script src="rs-admin-preview.js"></script>
+<script src="rs-mediatri-guide.js"></script>
+<script src="rs-demo-offline.js"></script>
+<script src="app.js"></script>
+<script src="mobile-nav.js"></script>
+<script src="i18n.js"></script>
+</body>
+</html>
