@@ -9,7 +9,13 @@
  var config=w.RS_V3_AUTH_PILOT_CONFIG,guard=w.RS_V3_TEST_BACKEND_GUARD;
  var adapterFactory=w.RS_V3_FIREBASE_AUTH_ADAPTER;
  var controllerFactory=w.RS_V3_AUTH_CONTROLLER;
- var currentLang='ru',control=null,readyDone=false;
+ var currentLang='ru',control=null,readyDone=false,googleCspBlocked=false;
+ // Record only a boolean for blocked Google resources: never the URL/query.
+ d.addEventListener('securitypolicyviolation',function(event){
+   var blocked=event&&event.blockedURI;
+   if(typeof blocked==='string'&&/^https:\/\/(apis\.google\.com|accounts\.google\.com|www\.gstatic\.com)(\/|$)/.test(blocked))
+     googleCspBlocked=true;
+ });
  var words={
   ru:{title:'Проверка Google-входа',subtitle:'Отдельный тестовый Firebase-проект. Настоящие словари и результаты не подключены.',
     notice:'При первом входе Firebase создаст новую тестовую учётную запись. Это не аккаунт рабочего Sanastoyhteisö. Здесь нет Firestore и личных учебных данных.',
@@ -20,7 +26,11 @@
     signed_out:'Вход не выполнен',unverified:'Email не подтверждён',verified:'Вход подтверждён',
     error:'Ошибка входа',startError:'Не удалось загрузить модуль Firebase',
     popupBlocked:'Браузер блокирует вход через всплывающее окно. Открой страницу в обычном браузере и разреши всплывающее окно.',
-    internalError:'Не удалось завершить Google-вход. Если ты открыл страницу внутри ChatGPT или другого приложения, скопируй адрес и открой его в обычном Safari. Если ошибка повторяется в Safari, сообщи код auth/internal-error.',
+    internalError:'Не удалось завершить Google-вход (auth/internal-error). Если ты в обычном Safari или Chrome, это уже ошибка подключения или SDK, а не только встроенного браузера.',
+    cspHint:' Диагностика: браузер заблокировал ресурс Google по правилам безопасности страницы.',
+    storageHint:' Диагностика: сбой локального хранилища браузера (IndexedDB).',
+    networkHint:' Диагностика: не удалось обратиться к сервису авторизации.',
+    unknownHint:' Причина не уточнена; не меняй проект Firebase и не сообщай никому пароли.',
     providerMissing:'В новом Firebase включи Authentication → Sign-in method → Google, затем добавь домен velardream-ctrl.github.io в Authorized domains.',
     disabled:'Включи Google Sign-in в новом Firebase; после этого можно проверять вход.',
     back:'Вернуться к тестовому Sanastoyhteisö',explain:'Это отдельная проверочная страница, основной сайт не изменён.'},
@@ -32,7 +42,11 @@
     signed_out:'Ei kirjautunut',unverified:'Sähköpostia ei vahvistettu',verified:'Kirjautuminen vahvistettu',
     error:'Kirjautumisvirhe',startError:'Firebase-moduulia ei voitu ladata',
     popupBlocked:'Ponnahdusikkuna estettiin. Avaa sivu selaimessa.',
-    internalError:'Google-kirjautuminen epäonnistui. Jos sivu on sovelluksen sisäisessä selaimessa, avaa osoite suoraan Safarissa. Jos virhe jatkuu, ilmoita koodi auth/internal-error.',
+    internalError:'Google-kirjautuminen epäonnistui (auth/internal-error). Jos ongelma toistuu tavallisessa Safarissa, syy ei ole vain sovelluksen sisäisessä selaimessa.',
+    cspHint:' Diagnostiikka: sivun tietoturvakäytäntö esti Googlen resurssin.',
+    storageHint:' Diagnostiikka: selaimen paikallisen tallennuksen (IndexedDB) virhe.',
+    networkHint:' Diagnostiikka: yhteys kirjautumispalveluun epäonnistui.',
+    unknownHint:' Tarkkaa syytä ei vielä havaittu; älä jaa salasanoja.',
     providerMissing:'Ota Google-kirjautuminen käyttöön uuden Firebase-projektin Authentication-asetuksissa ja lisää velardream-ctrl.github.io sallittuihin verkkotunnuksiin.',
     disabled:'Ota Google-kirjautuminen käyttöön ennen testiä.',
     back:'Takaisin testisanastoon',explain:'Tämä on erillinen testi, vanhaa sivustoa ei muutettu.'},
@@ -44,7 +58,11 @@
     signed_out:'Signed out',unverified:'Email not verified',verified:'Signed in and verified',
     error:'Sign-in error',startError:'Could not initialize Firebase module',
     popupBlocked:'Popup blocked. Open the page in a regular browser and allow popups.',
-    internalError:'Google sign-in did not complete. If this page is inside another app, copy its URL and open it directly in Safari. If Safari also fails, report code auth/internal-error.',
+    internalError:'Google sign-in failed (auth/internal-error). If this repeats in Safari or Chrome, it is not limited to an embedded browser.',
+    cspHint:' Diagnostic: the page security policy blocked a Google resource.',
+    storageHint:' Diagnostic: browser local storage (IndexedDB) failure.',
+    networkHint:' Diagnostic: connection to the authentication service failed.',
+    unknownHint:' Underlying cause is still unknown; never share a password or token.',
     providerMissing:'Enable Authentication → Sign-in method → Google in NEW Firebase project. Add velardream-ctrl.github.io to Authorized domains.',
     disabled:'Enable the Google provider in the new Firebase project before testing.',
     back:'Back to demo Sanastoyhteisö',explain:'This is a separate test page. The production site is unchanged.'}
@@ -52,8 +70,12 @@
  function el(id){return d.getElementById(id);}
  function setText(id,value){var node=el(id);if(node)node.textContent=value;}
  function t(key){return words[currentLang][key]||key;}
- function msg(code){
-   if(code==='auth/internal-error')return t('internalError');
+ function msg(code,reason){
+   if(code==='auth/internal-error'){
+     var hint=reason==='csp'?'cspHint':reason==='storage'?'storageHint':
+       reason==='network'?'networkHint':'unknownHint';
+     return t('internalError')+t(hint);
+   }
    if(code==='auth/popup-blocked'||code==='auth/popup-closed-by-user'||
       code==='auth/cancelled-popup-request')return t('popupBlocked');
    if(code==='auth/unauthorized-domain'||code==='auth/operation-not-allowed'||
@@ -62,8 +84,13 @@
      return t('error')+' ('+code+')';
    return t('error');
  }
- function displayError(code){
-   var m=el('pilot-message');if(m){m.textContent=msg(code);m.hidden=false;}
+ function displayError(error){
+   var code=error&&error.code?error.code:
+     error&&typeof error.message==='string'?error.message:error;
+   var reason=error&&error.reason||'unknown';
+   if(code==='auth/internal-error'&&googleCspBlocked)reason='csp';
+   var m=el('pilot-message');
+   if(m){m.textContent=msg(code,reason);m.hidden=false;}
  }
  function paintText(){
    setText('pilot-title',t('title'));setText('pilot-subtitle',t('subtitle'));
@@ -138,7 +165,7 @@
      // Google popup MUST open immediately inside the click event.
      if(!control)return;
      el('pilot-message').hidden=true;
-     control.signInWithGoogle().catch(function(e){displayError(e.message);});
+     control.signInWithGoogle().catch(function(e){displayError(e);});
    });
    el('pilot-logout').addEventListener('click',function(){
      if(!control)return;
