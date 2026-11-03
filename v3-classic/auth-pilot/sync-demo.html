@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://accounts.google.com; connect-src https://firestore.googleapis.com https://firebase.googleapis.com https://apis.google.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://www.gstatic.com https://www.google.com https://accounts.google.com https://sanastoyhteiso-v3-development.firebaseapp.com; frame-src https://sanastoyhteiso-v3-development.firebaseapp.com https://accounts.google.com https://apis.google.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Sanastoyhteisö V3 — тест синхронизации двух устройств</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#eff7fa;color:#193b4d;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+main{max-width:780px;margin:0 auto;padding:18px 14px 80px}
+h1{font-size:25px;line-height:1.25}h2{font-size:20px;margin-top:4px}p{line-height:1.5}
+a{color:#22667e}.card{background:#fff;border:1px solid #b9dbe6;border-radius:16px;padding:18px;margin:14px 0}
+.notice{background:#fff8e4;border:1px solid #ebd18b;padding:14px;border-radius:12px}
+button{font:700 16px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#dceff7;color:#164b63;border:1px solid #9cc8d8;min-height:48px;border-radius:12px;padding:10px 15px;margin:5px 6px 5px 0}
+button:disabled{opacity:.4}button:focus-visible,a:focus-visible{outline:3px solid #c88e12;outline-offset:2px}
+.card-row{display:flex;flex-wrap:wrap;gap:8px}.card-row button{flex:1 0 110px;margin:0}
+.scores{display:flex;gap:12px;flex-wrap:wrap}.scores div{min-width:100px;flex:1;border:1px solid #d5e8ef;background:#f2f9fc;padding:10px;border-radius:10px;text-align:center}
+.num{font-size:26px;font-weight:800}.small{color:#527688;font-size:14px}.ok{color:#176a41}.error{color:#9b3b35}
+.note{font-weight:700;overflow-wrap:anywhere}article{border-top:1px solid #d9e8ed;padding-top:12px;margin-top:14px}
+</style></head><body><main>
+<a href="profile-legacy.html">Вернуться к проверке профиля</a>
+<section class="card"><h1>Синхронизация двух устройств — тест V3</h1>
+<p class="notice"><strong>Только вымышленные ответы.</strong> Новая коллекция <code>sync_demo_v3</code> в отдельном Firebase. Она не содержит настоящих словарей и не изменяет твою историю обучения. Демоответы можно удалить. Нужны отдельные протестированные правила Firestore.</p>
+<p>Вход: <strong id="auth-status">Загрузка…</strong></p>
+<p>Облако: <strong id="cloud-status">Не подключено</strong></p>
+<button id="login" type="button" disabled>Войти через Google</button>
+<button id="logout" type="button" disabled>Выйти</button>
+<p id="message" role="status" aria-live="polite" class="note">Проверка подключения…</p></section>
+<section class="card">
+<h2>Три вымышленные карточки</h2>
+<p class="small">Нажми любой ответ на iPhone и наблюдай за суммой на iPad. При отключённом интернете ответ остаётся в локальной демо-очереди и отправится после восстановления связи.</p>
+<article><strong>DEMO A: testi A → тест А</strong><div class="card-row">
+<button type="button" data-demo-target="DEMO_CARD_A" data-demo-answer="1" disabled>Верно</button><button type="button" data-demo-target="DEMO_CARD_A" data-demo-answer="0" disabled>Неверно</button></div></article>
+<article><strong>DEMO B: testi B → тест Б</strong><div class="card-row">
+<button type="button" data-demo-target="DEMO_CARD_B" data-demo-answer="1" disabled>Верно</button><button type="button" data-demo-target="DEMO_CARD_B" data-demo-answer="0" disabled>Неверно</button></div></article>
+<article><strong>DEMO C: testi C → тест В</strong><div class="card-row">
+<button type="button" data-demo-target="DEMO_CARD_C" data-demo-answer="1" disabled>Верно</button><button type="button" data-demo-target="DEMO_CARD_C" data-demo-answer="0" disabled>Неверно</button></div></article>
+</section>
+<section class="card"><h2>Общий результат</h2>
+<div class="scores">
+<div><span class="small">Всего</span><div class="num" id="seen">0</div></div>
+<div><span class="small">Верно</span><div class="num" id="correct">0</div></div>
+<div><span class="small">Неверно</span><div class="num" id="wrong">0</div></div>
+<div><span class="small">Не отправлено</span><div class="num" id="pending">0</div></div>
+</div>
+<p class="small" id="card-details">Ничего не записано.</p>
+<button type="button" id="retry" disabled>Повторить отправку</button>
+<button type="button" id="clear" disabled>Удалить только демоответы</button>
+<p class="small">Этот стенд использует события без повторного начисления и обновление через Firestore в реальном времени. Проверки ещё не означают готовность миграции действующего сайта.</p>
+</section>
+</main>
+<script defer src="config.js"></script><script defer src="guard.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script defer src="adapter.js"></script><script defer src="controller.js"></script>
+<script defer src="sync-demo-core.js"></script>
+<script defer src="sync-demo.js?v=isolated-20261103"></script>
+</body></html>
