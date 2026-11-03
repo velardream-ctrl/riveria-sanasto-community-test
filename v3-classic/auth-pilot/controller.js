@@ -23,6 +23,23 @@
      return code;
    return 'auth/unavailable';
  }
+ // Firebase 12.19+ puts the underlying persistence exception in
+ // customData.originalError. Expose only predefined categories, NEVER raw
+ // messages, emails, tokens or exception objects in page or diagnostics.
+ function classifiedError(e){
+   var code=safeError(e),detail=e&&e.customData&&e.customData.originalError;
+   var message=detail&&typeof detail.message==='string'?detail.message:'';
+   var reason='unknown';
+   if(/database is closing|indexeddb|transactioninactive|quotaexceeded|storage is inaccessible/i.test(message))
+     reason='storage';
+   else if(/content security policy|refused to load|blocked by csp/i.test(message))
+     reason='csp';
+   else if(/network|failed to fetch|timeout|offline/i.test(message))
+     reason='network';
+   var failure=Error(code);
+   failure.code=code;failure.reason=reason;
+   return failure;
+ }
  function userView(user){
    if(!user)return null;
    if(!validUID(user.uid)||typeof user.email!=='string'||
@@ -102,7 +119,7 @@
      var loginPromise;
      try{loginPromise=opts.adapter.signInWithGoogle();}
      catch(e){pending=false;change('error',null,safeError(e));
-       return Promise.reject(Error(safeError(e)));}
+       return Promise.reject(classifiedError(e));}
      return Promise.resolve(loginPromise).then(function(result){
          pending=false;
          if(disposed)return snapshot();
@@ -112,7 +129,7 @@
          return snapshot();
        },function(err){
          pending=false;change('error',null,safeError(err));
-         throw Error(safeError(err));
+         throw classifiedError(err);
        });
    }
    function verifiedUser(){
