@@ -49,13 +49,24 @@
    });
    if(result.errors.length)return result;
    var oldWords=asMap(x.userWords),newWords=asMap(y.userWords);
-   var diff={newScores:0,missingScores:0,decreasedCounters:0,
+   var diff={newScores:0,missingScores:0,missingScoreAnswers:0,
+     missingScoreCorrect:0,missingScoreWrong:0,missingLearned:0,
+     decreasedCounters:0,
      newWords:0,removedWords:0,changedWords:0,newFavorites:0,
      removedFavorites:0,changedFavoriteMeta:0,
      removedDeletionMarkers:0,newDeletionMarkers:0,
      changedDeletionMarkers:0,changedLearnedFlags:0};
    Object.keys(x.scores).forEach(function(id){
-     if(!own(y.scores,id)){diff.missingScores++;return;}
+     if(!own(y.scores,id)){
+       var missing=x.scores[id];
+       diff.missingScores++;
+       diff.missingScoreAnswers+=missing.seen;
+       diff.missingScoreCorrect+=missing.correct;
+       diff.missingScoreWrong+=missing.wrong;
+       if(missing.learned===true || (missing.learned!==false && missing.correct>0))
+         diff.missingLearned++;
+       return;
+     }
      var p=x.scores[id],q=y.scores[id];
      if(q.seen<p.seen||q.correct<p.correct||q.wrong<p.wrong)diff.decreasedCounters++;
      if(typeof p.learned==='boolean'&&p.learned!==q.learned)diff.changedLearnedFlags++;
@@ -83,7 +94,7 @@
    Object.keys(y.deletedWords).forEach(function(id){
      if(!own(x.deletedWords,id))diff.newDeletionMarkers++;
    });
-   if(diff.missingScores)result.errors.push('Пропали записи результатов');
+   if(diff.missingScores)result.errors.push('Записи результатов из старой копии отсутствуют; проверь Google Drive перед переносом');
    if(diff.decreasedCounters)result.errors.push('Снизились счётчики отдельных терминов');
    if(diff.removedWords)result.errors.push('Отсутствуют личные слова: нужна проверка удаления');
    if(diff.removedDeletionMarkers)result.errors.push('Есть риск восстановить удалённые слова');

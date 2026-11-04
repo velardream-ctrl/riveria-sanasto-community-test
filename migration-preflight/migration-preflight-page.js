@@ -23,7 +23,11 @@
      Object.keys(labels).forEach(function(k){
        add(m,labels[k]+': '+x.older[k]+' → '+x.newer[k]);
      });
-     var labels2={newScores:'Новых результатов',missingScores:'Пропавших результатов',
+     var labels2={newScores:'Новых результатов',missingScores:'Отсутствующих старых записей',
+       missingScoreAnswers:'Ответов в отсутствующих записях',
+       missingScoreCorrect:'Правильных ответов под риском',
+       missingScoreWrong:'Неправильных ответов под риском',
+       missingLearned:'Помеченных выученными среди отсутствующих',
        decreasedCounters:'Сниженных счётчиков',newWords:'Новых личных слов',
        removedWords:'Отсутствующих личных слов',changedWords:'Изменённых слов',
        newFavorites:'Добавлений в избранное',removedFavorites:'Убрано из избранного',
