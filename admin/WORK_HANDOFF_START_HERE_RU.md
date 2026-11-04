@@ -77,3 +77,11 @@
 - TEST PR #3: [fix/code commit 91fa4f7](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/91fa4f79ff2b8564c1a3671153e55ab0057e346d), `admin/tests/admin-access.test.cjs` (29 Node mock tests), [CI workflow commit 5f4ae30](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/5f4ae30af80736f582c7c6eb01b4c731a609ea63).
 - [GitHub Actions #41915536733](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41915536733): `success`, нативные Node tests **29/29 PASS**, syntax checks и release manifest PASS.
 - [Полный технический audit](./ADMIN_TECHNICAL_AUDIT_2026-11-04_RU.md) сохраняет ограничения и следующий шаг. Реальный admin claim, Firestore Rules, серверные данные, браузеры/iOS12 — **не проверены**. Stage B/C/E не закрывать, production и Firebase не менять, merge без GO запрещён.
+
+
+## CHECKPOINT 04.11.2026 — RUN-013/014: emulator 15/15 PASS (НЕ live Firebase)
+
+- TEST [security contract commit 6a3599e](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/6a3599e1ba9d92e899ec039666c09cf38d58110d), [исправление зависимостей 3d15e33](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/3d15e3321914ae2f0cc403502c70ff656c463656).
+- [Actions 41918317702](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41918317702): **real local Firestore emulator 15/15 PASS, 0 FAIL**; [TEST client CI 41918317604](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41918317604) SUCCESS.
+- `admin/security-tests/firestore.contract.rules` — **только изолированный deny-all TEST fixture, НЕ deployed rules и НЕ файл для замены правил**. Полное облачное TEST ruleset и server-issued custom claim по-прежнему не прочитаны/не подтверждены. Нужна сверка правил со всем student access до additive обновления.
+- [Аудит с планом дальнейшего действия](./ADMIN_TECHNICAL_AUDIT_2026-11-04_RU.md); сверить GitHub PR #3 HEAD/CI, внести новый RUN START. До GO никаких изменений реальной Firebase и production.

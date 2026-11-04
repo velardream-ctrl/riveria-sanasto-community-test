@@ -52,3 +52,23 @@ GitHub Actions на commit 5f4ae30: все указанные шаги PASS. Git
 2. Перед действиями создать свой `RUN-YYYYMMDD-NNN / НАЧАЛ` в GitHub.
 3. Продолжить **C: проверка Security Rules / custom admin claim** в изолированном тестовом проекте и только с безопасным разрешением владельца для фактической выдачи роли/правок облака. Начать с read-only аудита тестовых Rules и модели доступа, затем отдельный план эмулятора/тестов.
 4. После каждого шага `ЗАВЕРШИЛ` либо `BLOCKED`, обновить TASK/Issue; не ставить DONE на stage C/E по одному JS smoke.
+
+
+## CHECKPOINT RUN-013/014 — изолированный Firebase Rules emulator, 04.11.2026
+
+- Read-only аудит Git tree PR #3 (исходный HEAD 49971ca) не выявил `firestore.rules`, `firebase.json` или CI Rules emulator. Облачный deployed ruleset и наличие server-issued admin claim по-прежнему **не проверены**.
+- [Commit 6a3599e](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/6a3599e1ba9d92e899ec039666c09cf38d58110d): создан самостоятельный `admin/security-tests/` с `firestore.contract.rules`, 15 тестами и отдельным GitHub Actions. **Этот deny-all fixture нельзя публиковать как действующие правила учебного приложения.**
+- Первый CI [#41918184887](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41918184887) FAILED из-за npm peer dependency ERESOLVE до запуска тестов; [commit 3d15e33](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/3d15e3321914ae2f0cc403502c70ff656c463656) исправил SDK на Firebase 13 без отключения проверок.
+- [GitHub Actions #41918317702](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41918317702): SUCCESS, настоящий **локальный** Firestore emulator, Node tests 15/15 PASS, 0 FAIL. На точном HEAD 3d15e33 оба workflow также PASS на PR и push.
+- Проверено: `get admin_metrics/current` разрешён mock verified non-anonymous admin claim строго boolean; запрет студенту, анонимному пользователю, unverified и любому без роли; list/любые client writes/другие документы отвергаются. Эти mock claims **не означают реальной роли** в TEST Firebase.
+- Stage C/H/E остаётся **ЧАСТИЧНО / BLOCKED на реальных проверках**; никакие Firestore cloud Rules не менялись. Исторические утверждения выше о «нет emulator CI» относились к состоянию до RUN-014 и теперь уточнены.
+
+### Следующая обязательная проверка перед cloud-изменениями
+
+1. Read-only экспортировать из Firebase Console **полный актуальный ruleset** именно `sanastoyhteiso-v3-development`, с датой и номером версии. Из GitHub его восстановить невозможно; не заменять contract fixture. Не публиковать в репозитории токены, ключи service account и личные данные.
+2. Сравнить с разрешениями существующих `users`, `sync_v3` и других учебных коллекций, которые нельзя случайно заблокировать. Подготовить *аддитивную*, минимальную `match /admin_metrics/{metricId}` проверку на `admin == true`; проанализировать перекрывающиеся `match` и общие allow-правила (в Firestore правила объединяются логическим OR).
+3. Провести emulator-regression **на полном будущнем ruleset**, а не только автономном `admin/security-tests/firestore.contract.rules`: deny/allow для admin_metrics плюс совместимость учебных UID. Нужны исходные правила; пока этого теста **нет**.
+4. Для реальной приёмки использовать две отдельные тестовые учётные записи; выдача claim только через доверенный Firebase Admin SDK, отдельное согласованное действие владельца. Не принимать скриншот/клиентское скрытие как гарантию прав.
+5. Любые изменения реальных TEST Rules/Auth делать только после сверки, бэкапа ruleset и явного согласования; production/тарифы/данные/merge никогда не затрагивать на этом шаге.
+
+**Без реального ruleset и подтверждения тестового владельца Stage C не закрывать; следующий RUN может безопасно продолжить статические/browser проверки на TEST ветке.**
