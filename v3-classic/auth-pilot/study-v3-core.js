@@ -9,7 +9,7 @@
   else root.RS_SYNC_CORE=api;
 })(this,function(){
   'use strict';
-  var allowed={answer:1,learned_set:1,favorite_set:1,word_upsert:1,word_delete:1};
+  var allowed={answer:1,learned_set:1,favorite_set:1,word_upsert:1,word_delete:1,collection_set:1};
   function copy(x){return JSON.parse(JSON.stringify(x===undefined?null:x));}
   function nonnegative(x){return Math.max(0,Math.floor(Number(x)||0));}
   function safeId(s){return typeof s==='string' && s.length>0 && s.length<=180 &&
@@ -24,6 +24,12 @@
     if(e.kind==='word_upsert' && (!e.data.fi||!e.data.ru||
        (e.data.id!==undefined&&e.data.id!==e.target)))return false;
     if(e.kind==='word_delete'&&e.data.deleted!==true)return false;
+    if(e.kind==='collection_set'&&(
+       e.data.list!=='finds'||typeof e.data.added!=='boolean'||
+       ['practice','study','other'].indexOf(e.data.topic)<0||
+       typeof e.data.note!=='string'||e.data.note.length>350||
+       !/^(T[0-9]{5,7}|W_[a-f0-9]{32})$/.test(e.target)))
+      return false;
     return true;
   }
   function event(id,device,kind,target,data,time){
@@ -47,7 +53,7 @@
   }
   function fold(baseline,events){
     var state=copy(baseline||legacyBaseline()),seen={},applied=0,dupes=0,invalid=0;
-    state.scores=state.scores||{};state.words=state.words||{};state.favorites=state.favorites||{};
+    state.scores=state.scores||{};state.words=state.words||{};state.favorites=state.favorites||{};state.finds=state.finds||{};
     var sorted=(events||[]).slice().sort(function(a,b){return Number(a.time)-Number(b.time)||String(a.id).localeCompare(String(b.id));});
     sorted.forEach(function(e){
       if(!valid(e)){invalid++;return;}
@@ -68,8 +74,22 @@
         sc=state.scores[id]||{correct:0,wrong:0,seen:0,last:0,learned:false,learnedUpdatedAt:0};
         sc.learned=a.learned;sc.learnedUpdatedAt=e.time;state.scores[id]=sc;
       }else if(e.kind==='favorite_set')state.favorites[id]=a.starred;
+      else if(e.kind==='collection_set'){
+        // Keep a tombstone rather than removing this key so an incomplete
+        // server history can never silently erase a saved personal selection.
+        state.finds[id]={added:a.added,topic:a.topic,note:a.note,updatedAt:e.time};
+      }
       else if(e.kind==='word_upsert'){
-        var w=copy(a);w.id=id;state.words[id]=w;
+        var w=copy(a);w.id=id;
+        // Same deterministic personal word ID on two devices: identical text
+        // is idempotent. Conflicting translations require an explicit review;
+        // NEVER silently apply a last-writer-wins edit.
+        var previous=state.words[id];
+        if(previous){
+          if(String(previous.fi||'').replace(/\s+/g,' ').trim().toLowerCase()!==String(w.fi||'').replace(/\s+/g,' ').trim().toLowerCase()||String(previous.ru||'').replace(/\s+/g,' ').trim().toLowerCase()!==String(w.ru||'').replace(/\s+/g,' ').trim().toLowerCase()||
+             String(previous.en||'').replace(/\s+/g,' ').trim().toLowerCase()!==String(w.en||'').replace(/\s+/g,' ').trim().toLowerCase())
+            throw Error('Conflicting definitions for one personal word ID');
+        }else state.words[id]=w;
       }
       else if(e.kind==='word_delete')delete state.words[id];
     });

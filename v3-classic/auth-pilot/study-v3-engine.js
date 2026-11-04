@@ -9,13 +9,13 @@
 })(this,function(){
  'use strict';
  var MAX_REMOTE=10000;
- function empty(){return {scores:{},words:{},favorites:{}};}
+ function empty(){return {scores:{},words:{},favorites:{},finds:{}};}
  function safeUid(x){return typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);}
  function isTerm(x){return typeof x==='string'&&/^T[0-9]{5,7}$/.test(x);}
  function isWord(x){return typeof x==='string'&&/^W_[a-f0-9]{32}$/.test(x);}
  function validTarget(kind,id){
    if(kind==='word_upsert')return isWord(id);
-   return ['answer','learned_set','favorite_set'].indexOf(kind)>=0&&
+   return ['answer','learned_set','favorite_set','collection_set'].indexOf(kind)>=0&&
      (isTerm(id)||isWord(id));
  }
  function canonical(v){
@@ -158,6 +158,12 @@
        data=value?{correct:true}:{correct:false,reviewLearned:true};
      else if(kind==='learned_set'&&typeof value==='boolean')data={learned:value};
      else if(kind==='favorite_set'&&typeof value==='boolean')data={starred:value};
+     else if(kind==='collection_set'&&value&&typeof value==='object'&&
+       value.list==='finds'&&typeof value.added==='boolean'&&
+       ['practice','study','other'].indexOf(value.topic)>=0&&
+       typeof value.note==='string'&&value.note.length<=350){
+       data={list:'finds',added:value.added,topic:value.topic,note:value.note};
+     }
      else if(kind==='word_upsert'&&value&&typeof value==='object'&&
        typeof value.fi==='string'&&typeof value.ru==='string'&&
        value.fi.trim().length>=1&&value.ru.trim().length>=1&&

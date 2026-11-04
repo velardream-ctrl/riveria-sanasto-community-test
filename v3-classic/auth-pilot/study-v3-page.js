@@ -6,7 +6,8 @@
  'use strict';
  var cfg=w.RS_V3_AUTH_PILOT_CONFIG,guard=w.RS_V3_TEST_BACKEND_GUARD,
   core=w.RS_SYNC_CORE,shadowApi=w.RS_SYNC_SHADOW_IDB,
-  studyApi=w.RS_V3_STUDY_ENGINE,pagesApi=w.RS_V3_STUDY_PAGES;
+  studyApi=w.RS_V3_STUDY_ENGINE,pagesApi=w.RS_V3_STUDY_PAGES,
+  findsApi=w.RS_V3_FINDS,shaApi=w.RS_SHA256;
  var PATH='/riveria-sanasto-community-test/v3-classic/auth-pilot/study-v3.html';
  var controller=null,db=null,engine=null,shadow=null,sub=null;
  var activeUid='',activeRevision=0,busy=false,started=false;
@@ -28,6 +29,7 @@
        .toLowerCase().indexOf(q)<0)return false;
      var score=s.scores[t.id];
      if(mode==='favorites'&&s.favorites[t.id]!==true)return false;
+     if(mode==='finds'&&!(s.finds&&s.finds[t.id]&&s.finds[t.id].added))return false;
      if(mode==='learned'&&!(score&&score.learned===true))return false;
      if(mode==='review'&&score&&score.learned===true)return false;
      return true;
@@ -140,7 +142,8 @@
    el('start').disabled=busy||!logged()||!!engine;
    el('refresh').disabled=busy||!engine||!engine.status().ready;
    el('send').disabled=busy||!engine||!engine.status().ready;
-   el('add-word').disabled=busy||!engine||!engine.status().ready;
+   el('add-word').disabled=busy||!engine||!engine.status().ready||
+     (findsApi&&findsApi.matching(allTerms(),el('word-fi').value).exact.length>0);
  }
  function counters(record){
    var ss=record&&record.state&&record.state.scores||{},seen=0,correct=0,wrong=0,learned=0;
@@ -166,6 +169,9 @@
      counters(null);statusView();return;
    }
    counters(last);statusView();
+   var saved=last.state.finds||{},total=0;
+   Object.keys(saved).forEach(function(id){if(saved[id]&&saved[id].added)total++;});
+   set('finds-count',String(total));renderMatches();
    var list=visibleTerms();
    set('found',String(list.length)+' / '+allTerms().length);
    if(!list.length){
@@ -193,6 +199,19 @@
    star.disabled=busy;star.addEventListener('click',function(){
      update('favorite_set',t.id,!last.state.favorites[t.id],false);
    });wrap.appendChild(star);
+   var selection=last.state.finds&&last.state.finds[t.id],has=!!(selection&&selection.added);
+   if(has){
+     var source=selection.topic==='practice'?'Практика':
+       selection.topic==='study'?'Учёба':'Другое';
+     wrap.appendChild(element('p','small','Моя находка · '+source+
+       (selection.note?' · '+selection.note:'')));
+   }
+   var findBtn=element('button','',has?'✓ В моих находках — убрать':'＋ В мои находки');
+   findBtn.disabled=busy;
+   findBtn.addEventListener('click',function(){
+     chooseFind(t.id,!has,selection&&selection.topic||'other',selection&&selection.note||'');
+   });
+   wrap.appendChild(findBtn);
    var next=element('button','','Следующее →');next.disabled=busy;
    next.addEventListener('click',function(){current=(current+1)%list.length;reveal=false;render();});
    wrap.appendChild(next);el('study').appendChild(wrap);
@@ -236,30 +255,105 @@
    }).then(function(){busy=false;render();});
  }
 
+
+ function renderMatches(){
+   var out=el('word-matches');if(!out)return;
+   while(out.firstChild)out.removeChild(out.firstChild);
+   var value=el('word-fi').value;
+   if(!engine||!last||!findsApi||!value.trim())return;
+   var result=findsApi.matching(allTerms(),value),entries=result.exact.length?result.exact:result.similar;
+   if(result.exact.length)out.appendChild(element('p','small',
+     'Слово уже в словаре. Добавь существующую карточку в личную подборку:'));
+   else if(result.similar.length)out.appendChild(element('p','small',
+     'Возможные словоформы. Проверь значение перед выбором — они не объединяются автоматически:'));
+   else out.appendChild(element('p','small','Совпадений не найдено. Можно создать личную карточку.'));
+   entries.forEach(function(t){
+     var btn=element('button','',t.fi+' — '+t.ru+' · В мои находки');
+     btn.disabled=busy;
+     btn.addEventListener('click',function(){
+       chooseFind(t.id,true,el('word-topic').value,el('word-note').value);
+     });
+     out.appendChild(btn);
+   });
+ }
+ function findSelection(added,topic,noteText){
+   if(['practice','study','other'].indexOf(topic)<0||
+     typeof noteText!=='string'||noteText.length>350)
+     throw Error('Invalid personal selection');
+   return {list:'finds',added:added,topic:topic,note:noteText};
+ }
+ function saveAndSend(row){
+   last=row;note('Изменение сохранено в IndexedDB.',false);render();
+   return engine.upload().then(function(){return engine.view();}).then(function(record){
+     last=record;note('Мои находки синхронизированы.',false);
+   },function(){
+     note('Изменение в IndexedDB сохранено, но облако пока не подтвердило его. '+
+       'Проверь подключение и новые правила Firestore.',true);
+   });
+ }
+ function chooseFind(id,added,topic,rawNote){
+   if(!engine||busy||!matching())return;
+   if(!allTerms().some(function(t){return t.id===id;})){
+     note('Слово не найдено в текущем словаре.',true);return;
+   }
+   var value;
+   try{value=findSelection(added,topic,String(rawNote||'').trim());}
+   catch(e){note('Проверь заметку и категорию.',true);return;}
+   var prior=last.state.finds&&last.state.finds[id];
+   if(prior&&prior.added===value.added&&prior.topic===value.topic&&prior.note===value.note){
+     note('Это слово уже в выбранной подборке. Дубль не создаётся.',false);
+     return;
+   }
+   busy=true;render();
+   engine.record('collection_set',id,value).then(saveAndSend,function(){
+     note('Не удалось сохранить отметку. Старые данные не изменялись.',true);
+   }).then(function(){busy=false;render();},function(){busy=false;render();});
+ }
  function addPersonalWord(){
    if(!engine||busy||!matching())return;
    var fi=el('word-fi').value.trim(),ru=el('word-ru').value.trim(),
-       en=el('word-en').value.trim();
+       en=el('word-en').value.trim(),topic=el('word-topic').value,
+       rawNote=el('word-note').value.trim();
    if(!fi||!ru||fi.length>120||ru.length>180||en.length>180){
-     note('Для личного слова нужны FI и RU, каждый в пределах длины.',true);
-     return;
+     note('Нужны финский и русский переводы; проверь длину полей.',true);return;
    }
-   var id;
-   try{id='W_'+hex();}catch(e){note('Защищённый ID слова не создан.',true);return;}
-   busy=true;statusView();
-   engine.record('word_upsert',id,{fi:fi,ru:ru,en:en}).then(function(row){
-     last=row;
+   var selection;
+   try{selection=findSelection(true,topic,rawNote);}
+   catch(e){note('Неверная категория или длинная заметка.',true);return;}
+   if(findsApi.matching(allTerms(),fi).exact.length){
+     note('Слово уже есть. Выбери найденную карточку выше.',true);
+     renderMatches();return;
+   }
+   busy=true;render();
+   var uid=activeUid;
+   findsApi.personalId(uid,fi,shaApi,w.crypto).then(function(id){
+     if(!matching())throw Error('Account changed');
+     return (w.navigator.onLine===false?engine.view():engine.refresh())
+       .then(function(row){
+         last=row;
+         var exact=findsApi.matching(allTerms(),fi).exact;
+         if(exact.length)return engine.record('collection_set',exact[0].id,selection);
+         if(row.state.words[id]){
+           var existing=row.state.words[id];
+           if(findsApi.normalize(existing.fi)!==findsApi.normalize(fi))
+             throw Error('Personal word identity conflict');
+           if(existing.ru.trim()!==ru||(existing.en||'').trim()!==en)
+             throw Error('Personal word has another translation');
+           return engine.record('collection_set',id,selection);
+         }
+         return engine.record('word_upsert',id,{fi:fi,ru:ru,en:en})
+           .then(function(){return engine.record('collection_set',id,selection);});
+       });
+   }).then(function(row){
      el('word-fi').value='';el('word-ru').value='';el('word-en').value='';
-     el('category').value='Omat sanat';el('search').value='';
-     el('filter').value='all';current=0;reveal=false;
-     note('Личное слово сохранено в IndexedDB. Отправляем в облако…',false);
-     render();
-     return engine.upload().then(function(){return engine.view();}).then(function(record){
-       last=record;note('Личное слово синхронизировано.',false);
-     },function(){
-       note('Личное слово сохранено локально и ждёт интернета.',false);
-     });
-   },function(){note('Личное слово не сохранено, старые данные не затронуты.',true);
+     el('word-note').value='';el('search').value='';
+     el('category').value='';el('filter').value='finds';current=0;reveal=false;
+     return saveAndSend(row);
+   }).catch(function(err){
+     note(err&&err.message&&err.message.indexOf('another translation')>=0?
+       'Слово уже есть с другим переводом — уточни его. Ничего не перезаписано.':
+       'Сохранение не завершено. Проверь соединение, Google-вход и правила. '+
+       'Старая история не изменялась.',true);
    }).then(function(){busy=false;render();},function(){busy=false;render();});
  }
  function stop(){
@@ -309,7 +403,7 @@
    if(started)return;started=true;
    try{
      bootStage='SDK';
-     if(!cfg||!guard||!core||!shadowApi||!studyApi||!pagesApi||!w.firebase||
+     if(!cfg||!guard||!core||!shadowApi||!studyApi||!pagesApi||!findsApi||!shaApi||!w.firebase||
        !w.RS_V3_FIREBASE_AUTH_ADAPTER||!w.RS_V3_AUTH_CONTROLLER||
        !w.RS_DATA||!w.RS_DATA.terms||w.RS_DATA.terms.length<1296)
        throw Error('SDK or public dictionary missing');
@@ -356,6 +450,7 @@
    el('refresh').addEventListener('click',reload);
    el('send').addEventListener('click',send);
    el('add-word').addEventListener('click',addPersonalWord);
+   el('word-fi').addEventListener('input',function(){renderMatches();statusView();});
    ['search','category','filter'].forEach(function(id){
      el(id).addEventListener(id==='search'?'input':'change',function(){
        current=0;reveal=false;render();

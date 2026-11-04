@@ -47,7 +47,17 @@
      if(!id||typeof input.favorites[id]!=='boolean')
        throw Error('Invalid favorite; abort shadow transaction');
    });
-   return clone({scores:input.scores,words:input.words,favorites:input.favorites});
+   var finds=input.finds||{};
+   if(!plain(finds))throw Error('Invalid personal finds snapshot');
+   Object.keys(finds).forEach(function(id){
+     var v=finds[id];
+     if(!/^(T[0-9]{5,7}|W_[a-f0-9]{32})$/.test(id)||!plain(v)||
+       typeof v.added!=='boolean'||['practice','study','other'].indexOf(v.topic)<0||
+       typeof v.note!=='string'||v.note.length>350||!safeNum(v.updatedAt))
+       throw Error('Invalid personal find; abort shadow transaction');
+   });
+   return clone({scores:input.scores,words:input.words,
+     favorites:input.favorites,finds:finds});
  }
  function validatePending(queue,core){
    if(!Array.isArray(queue)||queue.length>5000)throw Error('Invalid shadow pending queue');
@@ -69,6 +79,10 @@
      // No word disappears without a separate, audited tombstone/restore plan.
      if(!Object.prototype.hasOwnProperty.call(after.words,id))
        throw Error('Cloud preview would remove a personal word');
+   });
+   Object.keys(before.finds||{}).forEach(function(id){
+     if(!Object.prototype.hasOwnProperty.call(after.finds||{},id))
+       throw Error('Cloud preview would remove a saved personal selection');
    });
  }
  function create(opts){

@@ -10,7 +10,7 @@ main{max-width:800px;margin:0 auto;padding:18px 15px 80px}h1{font-size:26px;line
 .card{background:white;border:1px solid #bcdce6;border-radius:16px;padding:20px;margin:14px 0}
 a{color:#236781}.alert{background:#fff7df;border:1px solid #efce83;padding:15px;border-radius:11px}
 button{font:700 16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;border:1px solid #a3c9d8;border-radius:11px;padding:11px 16px;min-height:48px;background:#e0f3fa;color:#164357;margin:4px 6px 4px 0}
-input,select{font:inherit;padding:9px;border:1px solid #a3c9d8;border-radius:9px;max-width:100%;width:100%;background:white;color:#164357}
+input,select,textarea{font:inherit;padding:9px;border:1px solid #a3c9d8;border-radius:9px;max-width:100%;width:100%;background:white;color:#164357}
 label{display:block;font-weight:650;margin:10px 0 3px}.filters{display:flex;flex-wrap:wrap;gap:12px}.filters>div{flex:1;min-width:180px}
 button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outline-offset:3px}.green{background:#d0f0d9;border-color:#a4dab7}.small{color:#557887;font-size:13px}
 .item{border:1px dashed #bad6e2;border-radius:12px;padding:14px;background:#f7fcff;margin:12px 0}
@@ -47,20 +47,32 @@ button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outli
 <select id="filter"><option value="all">Все термины</option>
 <option value="review">Не выучены</option>
 <option value="learned">Выучены</option>
-<option value="favorites">Избранное</option></select></div></div>
+<option value="favorites">Избранное</option>
+<option value="finds">Мои находки</option></select></div></div>
 <p class="small">Найдено: <strong id="found">—</strong></p>
 <p class="small">Нажми «Показать перевод», затем «Знаю» или «Нужно повторить».</p>
 <div id="study"><p>Войди и выбери «Начать обучение V3».</p></div>
 </section>
-<section class="card"><h2>Добавить личное слово</h2>
-<p class="small">Сохраняется только в твоём аккаунте V3. Пока можно создавать новые слова, но изменение и удаление ещё не включены. Не добавляй сведения о пациентах или коллегах.</p>
+<section class="card"><h2>Мои находки: <span id="finds-count">0</span></h2>
+<p class="small">Сохраняй услышанное слово в личную подборку без дублирования общей карточки.
+Подборка и учебные результаты независимы друг от друга.</p></section>
+<section class="card"><h2>Записать новое слово</h2>
+<p class="small">Программа сначала ищет совпадения среди общих и личных слов.
+При совпадении выбирай существующую карточку. Не записывай личные сведения других людей.</p>
 <label for="word-fi">Финский (FI)</label>
-<input id="word-fi" type="text" maxlength="120" placeholder="Например: aamuvuoro" autocomplete="off">
+<input id="word-fi" type="text" maxlength="120" placeholder="Например: peseytyminen" autocomplete="off">
+<div id="word-matches" aria-live="polite"></div>
 <label for="word-ru">Русский (RU)</label>
 <input id="word-ru" type="text" maxlength="180" placeholder="Утренняя смена" autocomplete="off">
 <label for="word-en">Английский (EN, по желанию)</label>
 <input id="word-en" type="text" maxlength="180" placeholder="Morning shift" autocomplete="off">
-<button type="button" id="add-word" disabled>Сохранить личное слово</button>
+<label for="word-topic">Источник слова</label>
+<select id="word-topic"><option value="practice">Практика</option>
+<option value="study">Учёба</option><option value="other">Другое</option></select>
+<label for="word-note">Моя заметка (необязательно)</label>
+<textarea id="word-note" maxlength="350" rows="2" placeholder="Объяснение или контекст"></textarea>
+<p class="small">Заметка доступна только твоему аккаунту V3.</p>
+<button type="button" id="add-word" disabled>Создать слово и добавить в находки</button>
 </section>
 <p class="small">Это проверка нового механизма хранения, а не основной сайт. Пока не используйте для своих единственных резервных копий.</p>
 </main>
@@ -73,5 +85,7 @@ button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outli
 <script defer src="study-v3-core.js"></script><script defer src="study-v3-shadow-idb.js"></script>
 <script defer src="study-v3-engine.js"></script>
 <script defer src="study-v3-pages.js"></script>
-<script defer src="study-v3-page.js?v=full-catalog-20261104"></script>
+<script defer src="study-v3-finds.js"></script>
+<script defer src="study-v3-sha256.js"></script>
+<script defer src="study-v3-page.js?v=my-finds-20261104"></script>
 </body></html>
