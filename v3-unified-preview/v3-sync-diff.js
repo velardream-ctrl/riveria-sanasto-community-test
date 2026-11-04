@@ -10,7 +10,7 @@
  'use strict';
  function count(x){return typeof x==='number'&&isFinite(x)&&x>=0?Math.floor(x):0;}
  function wordId(x){return typeof x==='string'&&/^W_[a-f0-9]{32}$/.test(x);}
- function target(x){return typeof x==='string'&&/^(?:[TMH][0-9]{5,7}|W_[a-f0-9]{32})$/.test(x);}
+ function target(x){return typeof x==='string'&&/^(?:[TMPH][0-9]{5,7}|W_[a-f0-9]{32})$/.test(x);}
  function stamp(x){return x===true;}
  function normalize(x){return String(x||'').replace(/\s+/g,' ').trim().toLowerCase();}
  function project(input){

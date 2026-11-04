@@ -11,7 +11,7 @@
  var MAX_REMOTE=10000;
  function empty(){return {scores:{},words:{},favorites:{},finds:{}};}
  function safeUid(x){return typeof x==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(x);}
- function isTerm(x){return typeof x==='string'&&/^[TMH][0-9]{5,7}$/.test(x);}
+ function isTerm(x){return typeof x==='string'&&/^[TMPH][0-9]{5,7}$/.test(x);}
  function isWord(x){return typeof x==='string'&&/^W_[a-f0-9]{32}$/.test(x);}
  function validTarget(kind,id){
    if(kind==='word_upsert')return isWord(id);
