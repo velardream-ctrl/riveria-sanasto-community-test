@@ -183,6 +183,9 @@
      var pending=hadConsent?diff.recover(r.state,existing):{events:[],unsafe:[]};
      if(pending.unsafe.length)throw Error('Local history conflict; old state preserved');
      ready=true;row=r;
+     // A fresh V3 study should show the shared public dictionary by default.
+     // Only the consenting owner is changed; later preferences are preserved.
+     if(!hadConsent&&w.RS_FAMILY.setScope)w.RS_FAMILY.setScope('all');
      observed=diff.project(r.state);
      function persist(index){
        if(index>=pending.events.length)return Promise.resolve();
