@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Sanastoyhteisö — Администратор (TEST)</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5fafc;color:#19394a;font:16px/1.5 -apple-system,BlinkMacSystemFont,Arial,sans-serif}body>header,main,footer{max-width:1080px;margin:auto;padding:18px}header{background:#e4f4fa}h1{font-size:26px;line-height:1.2;margin:8px 0 10px}h2{font-size:21px;margin:0 0 12px}h3{font-size:17px}.muted{color:#637d8b}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.panel{background:white;border:1px solid #cee4ed;border-radius:14px;padding:18px;margin-bottom:14px}.metric strong{font-size:26px;display:block}.metric small{color:#59727b}.nav{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}button,a.button{min-height:44px;border:1px solid #aecfdc;background:#fff;color:#1a6077;border-radius:10px;padding:10px 13px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}button.active{background:#216f88;color:white}button:focus-visible,a:focus-visible{outline:3px solid orange;outline-offset:2px}.notice{border:1px solid #e6d8ae;background:#fff9e8;border-radius:10px;padding:12px}.status{background:#edf5f8;border-radius:20px;padding:7px 12px}.hidden,[hidden]{display:none!important}.rs-lang-switch{display:flex;gap:7px}.rs-lang-switch button{min-width:46px}.row{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}code{overflow-wrap:anywhere}a{color:#146d86}@media(max-width:500px){.grid{grid-template-columns:1fr}body>header,main,footer{padding:12px}h1{font-size:22px}}
+</style></head>
+<body>
+<header><div class="row"><a href="../" id="back-link">← Sanastoyhteisö</a><nav class="rs-lang-switch" aria-label="Language"><button type="button" data-lang="fi">FI</button><button type="button" data-lang="en">EN</button><button type="button" data-lang="ru">RU</button></nav></div>
+<h1 id="page-title">Администрирование</h1><p id="subhead" class="muted">Закрытый кабинет • тестовый сайт</p></header>
+<main>
+ <div class="panel" id="auth-status" role="status" aria-live="polite">Проверяю административные права…</div>
+ <div id="admin-root" hidden>
+  <p class="notice" id="policy-note">Доступ разрешён. Если мониторинг ещё не подключён, показатели отображаются как «Нет данных», а не как нули.</p>
+  <nav id="admin-tabs" class="nav" aria-label="Разделы панели"></nav>
+  <section id="admin-view" aria-live="polite"></section>
+ </div>
+</main>
+<footer class="muted">Sanastoyhteisö V3 • Test build • Здесь нельзя удалять или читать личные ответы учеников.</footer>
+<script src="../config.js?v=2.0.4"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="admin-page.js?v=admin-stage-1"></script>
+</body></html>
