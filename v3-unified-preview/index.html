@@ -44,6 +44,10 @@
 .rs-ui-locale{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:5px 0 10px;font-size:13px;color:#516c78}
 .rs-ui-locale select{font:inherit;background:white;color:#1c4051;border:1px solid #aacddd;border-radius:9px;padding:8px 10px;max-width:205px}
 .rs-ui-locale select:focus-visible{outline:3px solid #1a829d;outline-offset:2px}
+.rs-lang-switch{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin:0 0 9px}
+.rs-lang-switch button{min-width:46px;min-height:44px;padding:8px 10px;border:1px solid #aacddd;border-radius:10px;background:white;color:#17485d;font:inherit;font-size:15px;font-weight:800;touch-action:manipulation}
+.rs-lang-switch button[aria-pressed="true"]{background:#156b84;border-color:#156b84;color:white}
+.rs-lang-switch button:focus-visible{outline:3px solid #dfad43;outline-offset:2px}
 .rs-i18n-note{font-size:13px;border-left:3px solid #83b8ce;padding:7px 11px;margin:8px 0;color:#446373;background:#f0f8fa}
 
 </style>
@@ -90,10 +94,10 @@
   </aside>
   <div class="main-column">
     <header class="topbar">
-      <div><div class="rs-ui-locale"><label for="rs-ui-language">Язык сайта</label><select id="rs-ui-language" aria-label="Язык интерфейса"><option value="auto">Автоматически</option><option value="ru">Русский</option><option value="fi">Suomi</option><option value="en">English</option></select></div><div id="heading-home-button" class="rs-heading-home" role="button" tabindex="0" title="На главную — к карточкам"><span class="eyebrow">TERVETULOA OPISKELEMAAN!</span><h1 id="page-title">Изучаем финский</h1></div><p id="page-subtitle">Термины и фразы, которые пригодятся на практике.</p><p id="rs-english-pending" class="rs-i18n-note" hidden>Английские переводы составлены автоматически и могут содержать ошибки. Особенно проверяйте медицинские термины.</p></div>
-      <div class="header-badges"><span id="home-update-status" class="status muted" role="status" aria-live="polite" hidden></span><span class="account-badge" id="family-account-badge" hidden></span><span class="status" id="online-status">● Проверка связи</span><span class="status muted" id="storage-status">Проверка сохранения</span></div>
+      <div><div id="heading-home-button" class="rs-heading-home" role="button" tabindex="0" title="На главную — к карточкам"><span class="eyebrow">TERVETULOA OPISKELEMAAN!</span><h1 id="page-title">Изучаем финский</h1></div><p id="page-subtitle">Термины и фразы, которые пригодятся на практике.</p><p id="rs-english-pending" class="rs-i18n-note" hidden>Английские переводы составлены автоматически и могут содержать ошибки. Особенно проверяйте медицинские термины.</p></div>
+      <div class="header-badges"><nav class="rs-lang-switch" aria-label="Language / Kieli / Язык"><button type="button" data-login-lang="fi" aria-pressed="false">FI</button><button type="button" data-login-lang="en" aria-pressed="false">EN</button><button type="button" data-login-lang="ru" aria-pressed="false">RU</button></nav><span id="home-update-status" class="status muted" role="status" aria-live="polite" hidden></span><span class="account-badge" id="family-account-badge" hidden></span><span class="status" id="online-status">● Проверка связи</span><span class="status muted" id="storage-status">Проверка сохранения</span></div>
     </header>
-    <div style="padding:12px;text-align:center;background:#dcecf4;color:#153d52;font-weight:bold">ТЕСТ ЕДИНОЙ V3 — отдельная Firebase Development, без доступа к рабочим аккаунтам</div>
+    
     <section id="v3-release-bar" class="banner" hidden role="status" aria-live="polite"></section>
     <main id="main-content" tabindex="-1">
       <div class="load-box">Открываю базу слов…</div>
