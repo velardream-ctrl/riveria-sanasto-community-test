@@ -57,3 +57,13 @@
 - «Не сделано»: блокеры и риски, без заявлений о готовности.
 - «Следующий шаг»: первый незакрытый пункт issue #10.
 - Обновить журнал передачи в каноническом MASTER ROADMAP и issue #10.
+
+## Обязательный восстановительный резерв — NEW-001 (подтверждено 04.11.2026)
+
+**Архитектурное решение владельца найдено в staging 3 ноября:** основная база — Firestore, независимый датированный **закрытый Google Sheets/Drive backup** как защита на бесплатном Firebase Spark. Это НЕ ежедневная ручная Google-табличная синхронизация.
+
+- `staging/rs-backup-plan.js` умеет собрать `scores/words/favorites/settings` snapshot и проверить обратное преобразование, но возвращает `PREPARED_NOT_UPLOADED` и **не вызывает Google Sheets API**.
+- Закрытые Google Sheets уже существуют (исторические копии), но автоматический процесс резервирования Firestore и проверенное восстановление новых V3 данных ещё не реализованы.
+- Новая сквозная задача `NEW-001` добавлена в [Issue #10](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/issues/10) и [мастер-план](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/blob/release/v3-safe-integration-20261104/docs/MASTER_ROADMAP_V3_ADMIN_RELEASE_2026-11-04_RU.md), [первоисточники в паспорте §6A](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/blob/release/v3-safe-integration-20261104/docs/PROJECT_HISTORY_ARCHITECTURE_2026-11-04_RU.md).
+- До GO реализовать проверяемый независимый периодический backup → versioned copies → hashes/сверка → тестовое восстановление без перезаписи prod → статус последнего проверенного snapshot в admin. Никакие секреты и личные данные не класть в публичный GitHub.
+
