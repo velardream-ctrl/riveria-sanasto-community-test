@@ -12,7 +12,7 @@
  var PROD='sanastoyhteiso-v3-development',PREFIX='rs_unified_v3_enabled_',
    BACKUP='rs_unified_v3_prior_backup_',DEVICE='rs_unified_v3_device';
  var uid='',engine=null,row=null,unsub=null,ready=false,starting=false,applying=false,
-   observed=null,lastError='',queue=Promise.resolve(),queued=0,tip='',lastTail='';
+   observed=null,lastError='',queue=Promise.resolve(),queued=0,tip='',lastTail='',epoch=0;
  var db=null,auth=null;
  function byId(id){return d.getElementById(id);}
  function active(){
@@ -88,14 +88,19 @@
    }finally{applying=false;status();}
  }
  function orderly(fn){
+   var owner=uid,token=epoch;
    queued++;
    var job=queue.then(function(){
-     if(!active())throw Error('V3 account changed before write');
+     if(token!==epoch||uid!==owner||!active())
+       throw Error('V3 account changed before write');
      return fn();
    });
    queue=job.then(function(){},function(e){
-     text('Локальные изменения сохранены; V3 требует проверки: '+String(e.message||e),true);
-   }).then(function(){queued--;status();});
+     if(token===epoch)
+       text('Локальные изменения сохранены; V3 требует проверки: '+String(e.message||e),true);
+   }).then(function(){
+     if(token===epoch){queued=Math.max(0,queued-1);status();}
+   });
    return job;
  }
  function sessionRemote(owner){
@@ -146,8 +151,12 @@
    };
  }
  function stop(){
+   epoch++;
    if(unsub){unsub();unsub=null;}
    ready=false;engine=null;row=null;observed=null;uid='';queued=0;
+   // Cancel the former account's queue; old promise continuations are fenced
+   // by the epoch token and cannot decrement the new owner's counters.
+   queue=Promise.resolve();
    lastTail='';starting=false;status();
  }
  function attach(user,manual){
@@ -155,8 +164,8 @@
    if(!consent(user.uid)&&!manual)return Promise.resolve(false);
    if(!engineAPI||!shadowAPI||!pages||!core||!diff||!finds||!sha)
      {text('Не все модули V3 загрузились.',true);return Promise.resolve(false);}
-   var hadConsent=consent(user.uid);
-   starting=true;tip='';status();uid=user.uid;
+   var hadConsent=consent(user.uid),owner=user.uid,session=epoch;
+   starting=true;tip='';status();uid=owner;
    var remote=sessionRemote(uid),storage;
    try{
      storage=shadowAPI.create({indexedDB:w.indexedDB,core:core,
@@ -168,7 +177,8 @@
        activeUid:function(){return validUser(auth.currentUser)&&uid===auth.currentUser.uid?uid:null;}});
    }catch(e){stop();text('V3 нельзя включить: '+e.message,true);return Promise.resolve(false);}
    return engine.start().then(function(r){
-     if(!validUser(auth.currentUser)||uid!==auth.currentUser.uid)throw Error('Session changed');
+     if(session!==epoch||uid!==owner||!validUser(auth.currentUser)||
+       auth.currentUser.uid!==owner)throw Error('Session changed');
      // No local reset before we have completely read and validated cloud data.
      var existing=local();
      if(!existing)throw Error('Local profile not ready');
@@ -194,13 +204,17 @@
      }
      return persist(0).then(function(){return engine.view();});
    }).then(function(next){
+     if(session!==epoch||uid!==owner||!validUser(auth.currentUser)||
+       auth.currentUser.uid!==owner)throw Error('Session changed before applying state');
      row=next;apply(next);
      if(!ready)throw Error('V3 activation failed');
      tip='V3 включена. Прежние результаты не удалены: создана локальная копия.';
      unsub=remote.watch(function(){if(active()&&queued===0)refresh();});
      starting=false;status();
      return upload();
-   }).then(function(){return true;}).catch(function(e){
+   }).then(function(){return session===epoch&&uid===owner&&active();}).catch(function(e){
+     // An older account's async failure must never stop a newer account.
+     if(session!==epoch)return false;
      // Never automatically restore or overwrite old data on a cloud error.
      stop();text('V3 пока не включена: '+String(e.message||e),true);
      return false;
@@ -248,23 +262,34 @@
    }
    observed=diff.project(after);
    if(!result.events.length)return;
+   var owner=uid,token=epoch,which=engine;
    result.events.forEach(function(e){
-     orderly(function(){return engine.record(e.kind,e.target,e.value).then(function(r){row=r;return r;});});
+     orderly(function(){return which.record(e.kind,e.target,e.value).then(function(r){
+       if(epoch===token&&uid===owner)row=r;return r;
+     });});
    });
-   // Apply only when queue becomes idle; do not hide rapid UI changes.
+   // Apply only when the SAME account's queue becomes idle.
    queue.then(function(){
-     if(!active())return;
-     engine.upload().then(function(r){row=r;status();},function(){
-       text('Ответы сохранены в IndexedDB; ожидается интернет.',false);
+     if(token!==epoch||uid!==owner||!active())return;
+     which.upload().then(function(r){
+       if(token===epoch&&uid===owner){row=r;status();}
+     },function(){
+       if(token===epoch)text('Ответы сохранены в IndexedDB; ожидается интернет.',false);
      });
    });
  }
  function direct(kind,target,value){
    if(!active())return Promise.reject(Error('V3 inactive'));
-   return orderly(function(){return engine.record(kind,target,value);}).then(function(r){
+   var owner=uid,token=epoch,which=engine;
+   function same(){return token===epoch&&uid===owner&&active();}
+   return orderly(function(){return which.record(kind,target,value);}).then(function(r){
+     if(!same())throw Error('V3 account changed during write');
      row=r;
-     return engine.upload().then(function(){return engine.view();},function(){return r;});
-   }).then(function(r){row=r;if(queued===0)apply(r);return r;});
+     return which.upload().then(function(){return which.view();},function(){return r;});
+   }).then(function(r){
+     if(!same())throw Error('V3 account changed after write');
+     row=r;if(queued===0)apply(r);return r;
+   });
  }
  function wordChoices(query){
    var all=(w.RS_DATA&&w.RS_DATA.terms||[]).slice();
@@ -376,6 +401,9 @@
    auth=w.firebase.auth();db=w.firebase.firestore();
    auth.onAuthStateChanged(function(user){
      if(!validUser(user)){stop();return;}
+     // Google can switch between two VERIFIED accounts without a null
+     // state. Always close the previous owner's session first.
+     if(uid&&uid!==user.uid)stop();
      if(active()&&user.uid===uid)return;
      if(consent(user.uid))attach(user,false);
      else status();
