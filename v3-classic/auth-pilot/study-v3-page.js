@@ -6,13 +6,52 @@
  'use strict';
  var cfg=w.RS_V3_AUTH_PILOT_CONFIG,guard=w.RS_V3_TEST_BACKEND_GUARD,
   core=w.RS_SYNC_CORE,shadowApi=w.RS_SYNC_SHADOW_IDB,
-  studyApi=w.RS_V3_STUDY_ENGINE;
+  studyApi=w.RS_V3_STUDY_ENGINE,pagesApi=w.RS_V3_STUDY_PAGES;
  var PATH='/riveria-sanasto-community-test/v3-classic/auth-pilot/study-v3.html';
  var controller=null,db=null,engine=null,shadow=null,sub=null;
  var activeUid='',activeRevision=0,busy=false,started=false;
  var current=0,reveal=false,last=null,bootStage='INIT',initializing=false;
  var terms=[],localDevice=null;
  function el(id){return d.getElementById(id);}
+ function allTerms(){
+   var words=last&&last.state&&last.state.words||{};
+   var ids=Object.keys(words).sort();
+   return terms.concat(ids.map(function(id){return words[id];}));
+ }
+ function visibleTerms(){
+   var q=(el('search').value||'').toLowerCase().trim(),
+       cat=el('category').value,mode=el('filter').value;
+   var s=last&&last.state||{scores:{},favorites:{}};
+   return allTerms().filter(function(t){
+     if(cat&&t.cat!==cat)return false;
+     if(q&&[t.id,t.fi,t.ru,t.en||'',t.cat||'',t.catRu||''].join(' ')
+       .toLowerCase().indexOf(q)<0)return false;
+     var score=s.scores[t.id];
+     if(mode==='favorites'&&s.favorites[t.id]!==true)return false;
+     if(mode==='learned'&&!(score&&score.learned===true))return false;
+     if(mode==='review'&&score&&score.learned===true)return false;
+     return true;
+   });
+ }
+ function addCategories(){
+   var found=Object.create(null),names=[],choose=el('category');
+   terms.forEach(function(t){
+     if(t.cat&&!found[t.cat]){
+       found[t.cat]={label:t.catRu?t.catRu+' / '+t.cat:t.cat};
+       names.push(t.cat);
+     }
+   });
+   if(!found['Omat sanat']){
+     found['Omat sanat']={label:'Мои слова / Omat sanat'};
+     names.push('Omat sanat');
+   }
+   names.sort(function(a,b){return a.localeCompare(b);});
+   names.forEach(function(k){
+     var option=d.createElement('option');
+     option.value=k;option.textContent=found[k].label;
+     choose.appendChild(option);
+   });
+ }
  function set(id,value){el(id).textContent=value;}
  function note(message,problem){
    set('message',message);el('message').className='state '+(problem?'error':'ok');
@@ -34,22 +73,34 @@
    if(value&&/^D_[a-f0-9]{32}$/.test(value))return value;
    value='D_'+hex();w.localStorage.setItem(name,value);return value;
  }
- function eventSignature(e){return JSON.stringify([e.id,e.device,e.kind,e.target,
-   e.time,JSON.stringify(e.data)]);}
+ // Firestore may reorder map fields; compare canonical event payloads.
  function remoteAdapter(){
    var collection=db.collection('sync_v3').doc(activeUid).collection('events');
    return {
     list:function(uid,limit){
-     if(!matching()||uid!==activeUid) return Promise.reject(Error('Account changed'));
-     return collection.orderBy('time','asc').limit(limit).get({source:'server'})
-       .then(function(s){
-         if(!matching())throw Error('Account changed during cloud read');
-         var events=[];
-         s.forEach(function(doc){var v=doc.data();
-           if(!v||v.id!==doc.id)throw Error('Cloud event ID mismatch');
-           events.push(v);
-         });return events;
-       });
+     if(!matching()||uid!==activeUid)
+       return Promise.reject(Error('Account changed'));
+     if(limit!==10000)return Promise.reject(Error('Unapproved cloud history cap'));
+     // Deterministic document-ID order prevents losing answers with identical
+     // millisecond timestamps. Paginate until a short/empty page is confirmed.
+     var reader=pagesApi.create({active:matching,pageSize:100,maxEvents:10000,
+       fetchPage:function(cursor,number){
+         var q=collection.orderBy(w.firebase.firestore.FieldPath.documentId(),'asc')
+           .limit(number);
+         if(cursor!==null)q=q.startAfter(cursor);
+         return q.get({source:'server'}).then(function(s){
+           if(!matching())throw Error('Account changed during history fetch');
+           var items=[],lastDoc=null;
+           s.forEach(function(doc){
+             var e=doc.data();
+             if(!e||e.id!==doc.id)
+               throw Error('Cloud event ID mismatch');
+             items.push(e);lastDoc=doc;
+           });
+           return {items:items,cursor:lastDoc};
+         });
+       }});
+     return reader.list();
     },
     put:function(uid,e){
      if(!matching()||uid!==activeUid)return Promise.reject(Error('Account changed'));
@@ -57,7 +108,7 @@
      return r.get({source:'server'}).then(function(doc){
        if(!matching())throw Error('Account changed during write');
        if(doc.exists){
-         if(eventSignature(doc.data())!==eventSignature(e)||doc.data().uid!==uid)
+         if(!studyApi.sameEvent(doc.data(),e)||doc.data().uid!==uid)
            throw Error('Cloud event collision; preserve local data');
          return;
        }
@@ -65,10 +116,15 @@
      });
     },
     watch:function(callback){
-      return collection.orderBy('time','asc').limit(500).onSnapshot(
+      // A small tail listener avoids rereading the first 500 historical
+      // events on each change and keeps detecting new answers after 500.
+      return collection.orderBy('time','desc').limit(5).onSnapshot(
        {includeMetadataChanges:true},function(s){
-        if(matching()&&!s.metadata.fromCache&&!s.hasPendingWrites)
-          callback(s.size);
+        if(matching()&&!s.metadata.fromCache&&!s.hasPendingWrites){
+          var ids=[];
+          s.forEach(function(doc){ids.push(doc.id);});
+          callback(ids.join('|'));
+        }
        },function(){if(matching())note('Обновления временно недоступны; локальные ответы сохранены.',true);});
     }
    };
@@ -84,6 +140,7 @@
    el('start').disabled=busy||!logged()||!!engine;
    el('refresh').disabled=busy||!engine||!engine.status().ready;
    el('send').disabled=busy||!engine||!engine.status().ready;
+   el('add-word').disabled=busy||!engine||!engine.status().ready;
  }
  function counters(record){
    var ss=record&&record.state&&record.state.scores||{},seen=0,correct=0,wrong=0,learned=0;
@@ -109,7 +166,13 @@
      counters(null);statusView();return;
    }
    counters(last);statusView();
-   var list=terms.slice(0,12),t=list[current%list.length],p=last.state.scores[t.id]||{seen:0,correct:0,wrong:0};
+   var list=visibleTerms();
+   set('found',String(list.length)+' / '+allTerms().length);
+   if(!list.length){
+     el('study').appendChild(element('p','small','В выбранной категории нет подходящих терминов.'));
+     return;
+   }
+   var t=list[current%list.length],p=last.state.scores[t.id]||{seen:0,correct:0,wrong:0};
    var wrap=element('div','item');
    wrap.appendChild(element('p','small','Термин '+(current%list.length+1)+' / '+list.length+
      ' · '+t.id+' · '+(p.learned?'Выучено':'В изучении')));
@@ -138,7 +201,7 @@
    if(!engine||busy||!matching())return;
    busy=true;statusView();render();
    engine.record(kind,id,value).then(function(row){
-     last=row;if(advance){current=(current+1)%12;reveal=false;}
+     last=row;if(advance){current=(current+1)%Math.max(1,visibleTerms().length);reveal=false;}
      note('Ответ записан в IndexedDB. Отправляем в облако…',false);
      render();
      return engine.upload().then(function(){return engine.view();}).then(function(row){
@@ -172,6 +235,33 @@
    },function(){note('Отправка ещё не завершена. Локальная очередь сохранена.',true);
    }).then(function(){busy=false;render();});
  }
+
+ function addPersonalWord(){
+   if(!engine||busy||!matching())return;
+   var fi=el('word-fi').value.trim(),ru=el('word-ru').value.trim(),
+       en=el('word-en').value.trim();
+   if(!fi||!ru||fi.length>120||ru.length>180||en.length>180){
+     note('Для личного слова нужны FI и RU, каждый в пределах длины.',true);
+     return;
+   }
+   var id;
+   try{id='W_'+hex();}catch(e){note('Защищённый ID слова не создан.',true);return;}
+   busy=true;statusView();
+   engine.record('word_upsert',id,{fi:fi,ru:ru,en:en}).then(function(row){
+     last=row;
+     el('word-fi').value='';el('word-ru').value='';el('word-en').value='';
+     el('category').value='Omat sanat';el('search').value='';
+     el('filter').value='all';current=0;reveal=false;
+     note('Личное слово сохранено в IndexedDB. Отправляем в облако…',false);
+     render();
+     return engine.upload().then(function(){return engine.view();}).then(function(record){
+       last=record;note('Личное слово синхронизировано.',false);
+     },function(){
+       note('Личное слово сохранено локально и ждёт интернета.',false);
+     });
+   },function(){note('Личное слово не сохранено, старые данные не затронуты.',true);
+   }).then(function(){busy=false;render();},function(){busy=false;render();});
+ }
  function stop(){
    if(sub){sub();sub=null;}
    engine=null;shadow=null;last=null;activeUid='';activeRevision=0;
@@ -198,7 +288,7 @@
        last=row;set('cloud',w.navigator.onLine===false?
          'Локальная история (офлайн)':'Соединение подтверждено');
        note('История открыта. Можно учиться.',false);
-       var lastNotified=0;
+       var lastNotified='';
        sub=remote.watch(function(size){
          if(!matching()||busy||size===lastNotified)return;
          lastNotified=size;reload();
@@ -219,13 +309,15 @@
    if(started)return;started=true;
    try{
      bootStage='SDK';
-     if(!cfg||!guard||!core||!shadowApi||!studyApi||!w.firebase||
+     if(!cfg||!guard||!core||!shadowApi||!studyApi||!pagesApi||!w.firebase||
        !w.RS_V3_FIREBASE_AUTH_ADAPTER||!w.RS_V3_AUTH_CONTROLLER||
        !w.RS_DATA||!w.RS_DATA.terms||w.RS_DATA.terms.length<1296)
        throw Error('SDK or public dictionary missing');
      terms=w.RS_DATA.terms.filter(function(t){
        return /^T[0-9]{5,7}$/.test(t.id)&&t.fi&&t.ru;
      });
+     if(terms.length<1296)throw Error('Incomplete public catalog');
+     addCategories();
      bootStage='PROJECT';
      var site={origin:w.location.origin,pathname:w.location.pathname};
      if(site.pathname!==PATH)throw Error('Wrong pilot path');
@@ -263,6 +355,12 @@
    el('start').addEventListener('click',start);
    el('refresh').addEventListener('click',reload);
    el('send').addEventListener('click',send);
+   el('add-word').addEventListener('click',addPersonalWord);
+   ['search','category','filter'].forEach(function(id){
+     el(id).addEventListener(id==='search'?'input':'change',function(){
+       current=0;reveal=false;render();
+     });
+   });
    w.addEventListener('online',function(){if(engine&&matching())send();});
    d.addEventListener('visibilitychange',function(){if(!d.hidden&&engine&&matching())reload();});
    render();

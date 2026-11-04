@@ -10,6 +10,8 @@ main{max-width:800px;margin:0 auto;padding:18px 15px 80px}h1{font-size:26px;line
 .card{background:white;border:1px solid #bcdce6;border-radius:16px;padding:20px;margin:14px 0}
 a{color:#236781}.alert{background:#fff7df;border:1px solid #efce83;padding:15px;border-radius:11px}
 button{font:700 16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;border:1px solid #a3c9d8;border-radius:11px;padding:11px 16px;min-height:48px;background:#e0f3fa;color:#164357;margin:4px 6px 4px 0}
+input,select{font:inherit;padding:9px;border:1px solid #a3c9d8;border-radius:9px;max-width:100%;width:100%;background:white;color:#164357}
+label{display:block;font-weight:650;margin:10px 0 3px}.filters{display:flex;flex-wrap:wrap;gap:12px}.filters>div{flex:1;min-width:180px}
 button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outline-offset:3px}.green{background:#d0f0d9;border-color:#a4dab7}.small{color:#557887;font-size:13px}
 .item{border:1px dashed #bad6e2;border-radius:12px;padding:14px;background:#f7fcff;margin:12px 0}
 .fi{font-size:25px;font-weight:700;margin:0 0 6px}.ru{font-size:18px;margin:0 0 9px}.stats{display:flex;flex-wrap:wrap;gap:9px}
@@ -17,7 +19,7 @@ button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outli
 .state{font-weight:700;overflow-wrap:anywhere}.error{color:#ad423f}.ok{color:#207344}
 </style></head><body><main>
 <section class="card"><h1>Sanastoyhteisö 3.0 — реальные термины</h1>
-<p class="alert"><strong>Закрытый пилот чистого старта.</strong> Первые 12 терминов настоящего словаря. История V3 сохраняется отдельно от рабочего сайта и прежнего Google Drive. Учебные события в Firestore неизменяемы; эта страница их не удаляет.</p>
+<p class="alert"><strong>Закрытый пилот чистого старта.</strong> Полный каталог из 1296+ настоящих терминов. История V3 сохраняется отдельно от рабочего сайта и прежнего Google Drive. Учебные события в Firestore неизменяемы; эта страница их не удаляет.</p>
 <p>Google-вход: <strong id="auth">Загрузка…</strong></p><p>Состояние: <strong id="cloud">Не запущено</strong></p>
 <button id="login" type="button" disabled>Войти через Google</button>
 <button id="logout" type="button" disabled>Выйти</button>
@@ -34,8 +36,31 @@ button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outli
 <button type="button" id="refresh" disabled>Проверить облако</button>
 <button type="button" id="send" disabled>Отправить очередь</button>
 <p class="small">Для проверки: сделай ответ на iPhone, открой ту же страницу на iPad, а затем проверь работу без интернета и после перезагрузки. Записи сохраняются в отдельном IndexedDB до подтверждения Firestore.</p></section>
-<section class="card"><h2>Настоящие учебные карточки</h2><p class="small">Нажми «Показать перевод», затем «Знаю» или «Нужно повторить».</p>
+<section class="card"><h2>Настоящие учебные карточки</h2>
+<p class="small">Выбери учебную тему, найди слово или открой избранное. Прогресс связан с термином, а не с фильтром.</p>
+<label for="search">Поиск FI / RU / EN</label>
+<input id="search" type="search" placeholder="Например: hoito, уход, care" autocomplete="off">
+<div class="filters">
+<div><label for="category">Учебная тема</label>
+<select id="category"><option value="">Все темы</option></select></div>
+<div><label for="filter">Показать</label>
+<select id="filter"><option value="all">Все термины</option>
+<option value="review">Не выучены</option>
+<option value="learned">Выучены</option>
+<option value="favorites">Избранное</option></select></div></div>
+<p class="small">Найдено: <strong id="found">—</strong></p>
+<p class="small">Нажми «Показать перевод», затем «Знаю» или «Нужно повторить».</p>
 <div id="study"><p>Войди и выбери «Начать обучение V3».</p></div>
+</section>
+<section class="card"><h2>Добавить личное слово</h2>
+<p class="small">Сохраняется только в твоём аккаунте V3. Пока можно создавать новые слова, но изменение и удаление ещё не включены. Не добавляй сведения о пациентах или коллегах.</p>
+<label for="word-fi">Финский (FI)</label>
+<input id="word-fi" type="text" maxlength="120" placeholder="Например: aamuvuoro" autocomplete="off">
+<label for="word-ru">Русский (RU)</label>
+<input id="word-ru" type="text" maxlength="180" placeholder="Утренняя смена" autocomplete="off">
+<label for="word-en">Английский (EN, по желанию)</label>
+<input id="word-en" type="text" maxlength="180" placeholder="Morning shift" autocomplete="off">
+<button type="button" id="add-word" disabled>Сохранить личное слово</button>
 </section>
 <p class="small">Это проверка нового механизма хранения, а не основной сайт. Пока не используйте для своих единственных резервных копий.</p>
 </main>
@@ -47,5 +72,6 @@ button:disabled{opacity:.42}button:focus-visible{outline:3px solid #bb8c22;outli
 <script defer src="../data-public.js"></script>
 <script defer src="study-v3-core.js"></script><script defer src="study-v3-shadow-idb.js"></script>
 <script defer src="study-v3-engine.js"></script>
-<script defer src="study-v3-page.js?v=final-pilot-1"></script>
+<script defer src="study-v3-pages.js"></script>
+<script defer src="study-v3-page.js?v=full-catalog-20261104"></script>
 </body></html>
