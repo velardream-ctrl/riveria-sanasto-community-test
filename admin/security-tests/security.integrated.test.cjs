@@ -42,6 +42,7 @@ test('admin_metrics cannot be read by unverified admin',async()=>{await assertFa
 test('admin_metrics requires boolean admin claim',async()=>{await assertFails(getDoc(pathDoc(user('fake',{...verified,admin:'true'}),'admin_metrics','current')));});
 test('admin_metrics rejects anonymous provider even if mock claim exists',async()=>{await assertFails(getDoc(pathDoc(user('anom',{...verified,admin:true,firebase:{sign_in_provider:'anonymous'}}),'admin_metrics','current')));});
 test('admin_metrics rejects missing provider details',async()=>{await assertFails(getDoc(pathDoc(user('invalid',{email_verified:true,admin:true}),'admin_metrics','current')));});
+test('admin_metrics rejects password provider in Google-only pilot',async()=>{await assertFails(getDoc(pathDoc(user('password',{email_verified:true,admin:true,firebase:{sign_in_provider:'password'}}),'admin_metrics','current')));});
 test('admin cannot get other admin_metrics document',async()=>{await assertFails(getDoc(pathDoc(user('admin',admin),'admin_metrics','anything')));});
 test('admin cannot list admin_metrics',async()=>{await assertFails(getDocs(collection(user('admin',admin),'admin_metrics')));});
 test('admin cannot create admin_metrics',async()=>{await assertFails(setDoc(pathDoc(user('admin',admin),'admin_metrics','new'),{siteStatus:'ok'}));});

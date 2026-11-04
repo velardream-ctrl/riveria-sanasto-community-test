@@ -16,3 +16,5 @@ npm run test:emulator
 Тесты проверяют get только точного пути с `admin === true`, `email_verified === true`, не анонимным provider, deny остальным, list/create/update/delete и посторонним коллекциям. Этот набор **не подтверждает реальный серверный доступ и не проверяет существующие правила для личного прогресса**. Для реальной приёмки нужны актуальные deployed Rules из Firebase Console/CLI, проверка additive интеграции, server-issued claim, и прямые запросы двух тестовых аккаунтов.
 
 **Не закрывать Stage C или E по зелёному эмулятору этого fixture.**
+
+**Уточнение RUN-016:** в тестовом пилоте admin_metrics принимается только `sign_in_provider == 'google.com'` вместе с verified admin claim. `custom`, `password`, `anonymous` отвергаются. Не переносить это ограничение на реальные аккаунты без сверки с настроенной стратегией Auth владельца.

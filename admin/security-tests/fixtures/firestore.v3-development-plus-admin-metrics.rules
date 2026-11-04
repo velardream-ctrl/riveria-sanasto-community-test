@@ -232,7 +232,7 @@ service cloud.firestore {
     // The admin UI requires admin_metrics/current; existing site_admin stays untouched.
     match /admin_metrics/{metricId} {
       allow get: if metricId == 'current' && isAdmin() &&
-        request.auth.token.firebase.sign_in_provider != 'anonymous';
+        request.auth.token.firebase.sign_in_provider == 'google.com';
       allow list, create, update, delete: if false;
     }
 
