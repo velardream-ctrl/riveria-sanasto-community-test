@@ -96,6 +96,8 @@ function update(){
   var els=D.body.querySelectorAll('[placeholder],[title],[aria-label]');
   for(var z=0;z<els.length;z++)if(!els[z].closest||!els[z].closest('#family-gate'))attrs(els[z]);
   D.documentElement.lang=lang;
+   var langButtons=D.querySelectorAll('[data-login-lang]');
+   for(var j=0;j<langButtons.length;j++){var on=langButtons[j].getAttribute('data-login-lang')===lang?'true':'false';if(langButtons[j].getAttribute('aria-pressed')!==on)langButtons[j].setAttribute('aria-pressed',on);}
   var select=D.getElementById('rs-ui-language');if(select&&select.value!==(mode==='auto'?'auto':lang))select.value=mode==='auto'?'auto':lang;
   var note=D.getElementById('rs-english-pending');
   if(note)note.hidden=lang!=='en';

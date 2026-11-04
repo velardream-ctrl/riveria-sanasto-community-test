@@ -102,11 +102,11 @@
   catch(e){doneLogin();formMessage(authErrorMessage(e),true);}
  }
  function updateToken(){return getToken();}
- function empty(){return {schema:1,scores:{},words:{},favorites:{},scope:{value:'mine',updatedAt:0}};}
+ function empty(){return {schema:1,scores:{},words:{},favorites:{},scope:{value:'all',updatedAt:0}};}
  function mergeScores(a,b){var m={},k; a=a||{};b=b||{};Object.keys(a).concat(Object.keys(b)).forEach(function(id){if(m[id])return;var x=a[id]||{},y=b[id]||{};m[id]={correct:Math.max(Number(x.correct)||0,Number(y.correct)||0),wrong:Math.max(Number(x.wrong)||0,Number(y.wrong)||0),seen:Math.max(Number(x.seen)||0,Number(y.seen)||0),last:Math.max(Number(x.last)||0,Number(y.last)||0)};});return m;}
  function mergeRecords(a,b){a=a||{};b=b||{};var m={};Object.keys(a).concat(Object.keys(b)).forEach(function(id){if(Object.prototype.hasOwnProperty.call(m,id))return;var x=a[id],y=b[id];m[id]=!x?y:!y?x:(Number(x.updatedAt)||0)>=(Number(y.updatedAt)||0)?x:y;});return m;}
  function mergeData(a,b){a=a||empty();b=b||empty();var s=a.scope||{},t=b.scope||{};return {schema:1,scores:mergeScores(a.scores,b.scores),words:mergeRecords(a.words,b.words),favorites:mergeRecords(a.favorites,b.favorites),scope:(Number(s.updatedAt)||0)>=(Number(t.updatedAt)||0)?s:t};}
- function getState(){var scores=getLocal('rs_scores_v1',{}),words=getLocal('rs_user_words_v1',[]),fav=getLocal('rs_favorites_v1',{}),meta=getLocal('rs_favorite_meta_v1',{}),deleted=getLocal('rs_deleted_words_v1',{}),scope=getLocal('rs_family_scope_v1',{value:'mine',updatedAt:0}),w={},f={};
+ function getState(){var scores=getLocal('rs_scores_v1',{}),words=getLocal('rs_user_words_v1',[]),fav=getLocal('rs_favorites_v1',{}),meta=getLocal('rs_favorite_meta_v1',{}),deleted=getLocal('rs_deleted_words_v1',{}),scope=getLocal('rs_family_scope_v1',{value:'all',updatedAt:0}),w={},f={};
  (Array.isArray(words)?words:[]).forEach(function(x){if(x&&x.id){var v=JSON.parse(stringify(x));v.updatedAt=Number(v.updatedAt)||1;v.deleted=false;w[x.id]=v;}});
  Object.keys(deleted||{}).forEach(function(id){var at=Number(deleted[id])||1;if(!w[id]||at>=Number(w[id].updatedAt||0))w[id]={id:id,updatedAt:at,deleted:true};});
  Object.keys(fav||{}).forEach(function(id){f[id]={starred:!!fav[id],updatedAt:Number(meta&&meta[id]&&meta[id].updatedAt)||1};});
@@ -129,7 +129,7 @@
   if(window.RS_COMM)window.RS_COMM.onLogout();
   status('Выход выполнен',false);formMessage('Ты вышел из аккаунта.',false);
  }
- function sharedEnabled(){var s=getLocal('rs_family_scope_v1',{value:'mine'});return !!(uid&&s&&s.value==='all');}
+ function sharedEnabled(){var s=getLocal('rs_family_scope_v1',{value:'all'});return !!(uid&&s&&s.value==='all');}
  function setScope(v){if(!uid)return;putLocal('rs_family_scope_v1',{value:v==='all'?'all':'mine',updatedAt:now()});if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);schedule();}
  function migrate(){if(!uid)return;
   if(window.RS_V3_RELEASE&&window.RS_V3_RELEASE.isActive()){
