@@ -1,6 +1,8 @@
 # СНАЧАЛА ОТКРОЙ ЭТО — передача ChatGPT / Work
 
 **Дата:** 2026-11-04. **Статус:** черновая подготовка, НЕ готово для production.  
+**Паспорт происхождения/архитектуры/точек восстановления:** https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/blob/release/v3-safe-integration-20261104/docs/PROJECT_HISTORY_ARCHITECTURE_2026-11-04_RU.md — открыть прежде, чем искать старые чаты или менять хранилище.
+**Состояние этапа A:** ЧАСТИЧНО, инвентаризированы GitHub и метаданные оригинальных Google Drive таблиц; восстановление частных данных и живое тестирование ещё не проверены.
 **Канонический план и этапы A–K:** https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/blob/release/v3-safe-integration-20261104/docs/MASTER_ROADMAP_V3_ADMIN_RELEASE_2026-11-04_RU.md  
 **Живая доска задач с галочками:** https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/issues/10  
 **Текущий этот PR:** https://github.com/velardream-ctrl/riveria-sanasto-community-test/pull/3  
