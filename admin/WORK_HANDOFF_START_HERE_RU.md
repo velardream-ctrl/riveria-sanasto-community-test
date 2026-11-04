@@ -69,3 +69,11 @@
 - Новая сквозная задача `NEW-001` добавлена в [Issue #10](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/issues/10) и [мастер-план](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/blob/release/v3-safe-integration-20261104/docs/MASTER_ROADMAP_V3_ADMIN_RELEASE_2026-11-04_RU.md), [первоисточники в паспорте §6A](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/blob/release/v3-safe-integration-20261104/docs/PROJECT_HISTORY_ARCHITECTURE_2026-11-04_RU.md).
 - До GO реализовать проверяемый независимый периодический backup → versioned copies → hashes/сверка → тестовое восстановление без перезаписи prod → статус последнего проверенного snapshot в admin. Никакие секреты и личные данные не класть в публичный GitHub.
 
+
+
+## CHECKPOINT 04.11.2026 — NEW-002 сохранён, CI действительно зелёный
+
+- Исторический RUN-008 остаётся `RECOVERED_NOT_PUSHED` (это **не** успешный commit предыдущего Work). Повторная реализация выполнена под RUN-011/012.
+- TEST PR #3: [fix/code commit 91fa4f7](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/91fa4f79ff2b8564c1a3671153e55ab0057e346d), `admin/tests/admin-access.test.cjs` (29 Node mock tests), [CI workflow commit 5f4ae30](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/5f4ae30af80736f582c7c6eb01b4c731a609ea63).
+- [GitHub Actions #41915536733](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41915536733): `success`, нативные Node tests **29/29 PASS**, syntax checks и release manifest PASS.
+- [Полный технический audit](./ADMIN_TECHNICAL_AUDIT_2026-11-04_RU.md) сохраняет ограничения и следующий шаг. Реальный admin claim, Firestore Rules, серверные данные, браузеры/iOS12 — **не проверены**. Stage B/C/E не закрывать, production и Firebase не менять, merge без GO запрещён.
