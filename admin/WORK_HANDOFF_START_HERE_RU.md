@@ -85,3 +85,11 @@
 - [Actions 41918317702](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41918317702): **real local Firestore emulator 15/15 PASS, 0 FAIL**; [TEST client CI 41918317604](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41918317604) SUCCESS.
 - `admin/security-tests/firestore.contract.rules` — **только изолированный deny-all TEST fixture, НЕ deployed rules и НЕ файл для замены правил**. Полное облачное TEST ruleset и server-issued custom claim по-прежнему не прочитаны/не подтверждены. Нужна сверка правил со всем student access до additive обновления.
 - [Аудит с планом дальнейшего действия](./ADMIN_TECHNICAL_AUDIT_2026-11-04_RU.md); сверить GitHub PR #3 HEAD/CI, внести новый RUN START. До GO никаких изменений реальной Firebase и production.
+
+
+## CHECKPOINT 04.11.2026 — NEW-003 на полном историческом ruleset: 46/46 PASS, НЕ deployed
+
+- Источник mismatch: исторические правила V3 [PR #8 commit 828d702](https://github.com/sanastoyhteiso/sanastoyhteiso.github.io/commit/828d702430037aeca271786bbcf067e202f10c0c) содержат `site_admin`; текущая TEST админка PR #3 читает `admin_metrics/current`. NEW-003 зарегистрирован в мастер-плане и Issue #10.
+- [Snapshot и integration tests 2e9a5ac](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/2e9a5accde7334cef2f95feb41e66511e346ac68), [строгая Google-only роль для emulator fd6d94d](https://github.com/velardream-ctrl/riveria-sanasto-community-test/commit/fd6d94d0da7bda24ec4dc3359f346d27a790d1ad): [Actions #41920093362](https://github.com/velardream-ctrl/riveria-sanasto-community-test/actions/runs/41920093362) **46/46 PASS**. Первый CI 42/43 FAIL сохранён в журнале, не скрывается.
+- `admin/security-tests/fixtures/*.rules` и `firestore.contract.rules` — **NOT DEPLOYABLE!** Историческая/тестовая копия, не current cloud rules. Настоящие deployed TEST Rules и реальный admin claim не подтверждены; никаких cloud операций.
+- [Полный аудит](./ADMIN_TECHNICAL_AUDIT_2026-11-04_RU.md) содержит ограничения. Следующий чат: начать с journal START, read-only сверить актуальный deployed TEST ruleset, затем full emulator tests по его snapshot; не merge, не production, не затрагивать другой Firebase проект.
