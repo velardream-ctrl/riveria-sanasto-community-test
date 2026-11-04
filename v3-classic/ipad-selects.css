@@ -1,0 +1,69 @@
+/* Sanastoyhteiso TEST — readable, integrated old iPad Safari dropdowns.
+   Applied only when ipad-selects.js detects iPad with iOS 12 or earlier.
+   Newer iPads, iPhones and desktop browsers retain their native UI. */
+html.rs-legacy-ipad .rs-ipad-select-wrap{
+ display:block;position:relative;width:100%;min-width:0;max-width:100%;
+}
+html.rs-legacy-ipad .rs-ipad-select-native{
+ position:absolute!important;width:1px!important;height:1px!important;
+ padding:0!important;margin:0!important;border:0!important;
+ clip:rect(0,0,0,0)!important;overflow:hidden!important;
+ opacity:0!important;pointer-events:none!important;
+}
+html.rs-legacy-ipad .rs-ipad-select-trigger{
+ display:block;position:relative;box-sizing:border-box;width:100%;max-width:100%;
+ min-height:50px;text-align:left;white-space:normal;overflow-wrap:break-word;
+ -webkit-appearance:none;appearance:none;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+ font-size:19px;font-weight:650;line-height:1.35;
+ padding:11px 48px 11px 15px;margin:0;
+ border:1.5px solid #9cc8d6;border-radius:12px;
+ background:#f8fcfe;color:#17475b;
+ box-shadow:0 1px 3px rgba(24,71,91,.07);
+ -webkit-tap-highlight-color:rgba(30,123,150,.14);
+ cursor:pointer;
+}
+html.rs-legacy-ipad .rs-ipad-select-trigger:focus,
+html.rs-legacy-ipad .rs-ipad-select-trigger.rs-ipad-open{
+ outline:2px solid #3394af;outline-offset:2px;
+ border-color:#3394af;background:#edf9fd;
+}
+html.rs-legacy-ipad .rs-ipad-select-trigger:disabled{opacity:.5;cursor:default;}
+html.rs-legacy-ipad .rs-ipad-chevron{
+ position:absolute;right:13px;top:50%;margin-top:-12px;
+ width:25px;text-align:center;font-size:25px;line-height:24px;
+ font-weight:600;color:#37768b;pointer-events:none;
+}
+html.rs-legacy-ipad .rs-ipad-select-menu{
+ position:fixed;z-index:10002;box-sizing:border-box;overflow-y:auto;
+ -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+ border:2px solid #a2c9d7;border-radius:16px;
+ background:#fff;color:#173f51;
+ box-shadow:0 14px 40px rgba(20,70,86,.24);
+ padding:7px;
+}
+html.rs-legacy-ipad .rs-ipad-choice{
+ display:block;box-sizing:border-box;width:100%;min-height:52px;
+ padding:13px 17px;text-align:left;white-space:normal;
+ overflow-wrap:break-word;
+ -webkit-appearance:none;appearance:none;
+ background:#fff;color:#183f51;border:0;border-radius:10px;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+ font-size:19px;line-height:1.35;font-weight:550;
+ margin:2px 0;cursor:pointer;
+}
+html.rs-legacy-ipad .rs-ipad-choice.rs-ipad-chosen{
+ background:#d9f1f6;color:#14576d;font-weight:750;
+}
+html.rs-legacy-ipad .rs-ipad-choice.rs-ipad-chosen:before{
+ content:"✓ ";color:#177d71;font-weight:850;
+}
+html.rs-legacy-ipad .rs-ipad-choice:focus{
+ outline:2px solid #258ca8;outline-offset:-2px;
+ background:#e7f6fa;
+}
+html.rs-legacy-ipad .rs-ipad-choice:disabled{opacity:.45;cursor:default;}
+@media(prefers-reduced-motion:reduce){
+ html.rs-legacy-ipad .rs-ipad-select-trigger,
+ html.rs-legacy-ipad .rs-ipad-choice{transition:none!important;}
+}
