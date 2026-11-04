@@ -38,8 +38,8 @@
  function text(message,error){lastError=error?message:'';tip=message;status();}
  function status(){
    var slot=byId('v3-release-bar');if(!slot)return;
-   slot.hidden=false;while(slot.firstChild)slot.removeChild(slot.firstChild);
-   var h=d.createElement('strong');h.textContent='Синхронизация V3: ';
+   var inSettings=!!d.querySelector('[data-view="backup"].active');slot.hidden=!inSettings;if(!inSettings)return;while(slot.firstChild)slot.removeChild(slot.firstChild);
+   var h=d.createElement('strong');h.textContent='Синхронизация между устройствами: ';
    slot.appendChild(h);
    var t=d.createElement('span');
    var user=auth&&auth.currentUser;
@@ -55,7 +55,7 @@
    }
    if(!starting&&validUser(user)&&!active()){
      var b=d.createElement('button');b.type='button';b.className='btn good';
-     b.textContent=consent(user.uid)?'Повторить подключение V3':'Включить V3 с новой историей';
+     b.textContent=consent(user.uid)?'Повторить подключение':'Подключить синхронизацию';
      b.addEventListener('click',function(){begin(true);});slot.appendChild(b);
    }
    if(active()){
