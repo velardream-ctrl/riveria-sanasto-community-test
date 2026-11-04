@@ -83,6 +83,11 @@
    Object.keys(before.finds||{}).forEach(function(id){
      if(!Object.prototype.hasOwnProperty.call(after.finds||{},id))
        throw Error('Cloud preview would remove a saved personal selection');
+     var old=before.finds[id],incoming=after.finds[id];
+     if(incoming.updatedAt<old.updatedAt)
+       throw Error('Cloud preview would overwrite a newer personal selection');
+     if(incoming.updatedAt===old.updatedAt&&canonical(old)!==canonical(incoming))
+       throw Error('Cloud preview has a conflicting personal selection revision');
    });
  }
  function create(opts){
