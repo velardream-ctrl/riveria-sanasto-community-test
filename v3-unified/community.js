@@ -1,0 +1,161 @@
+/* Riveria Sanasto Community 2.0 • ES5 syntax for older Safari.
+   Auth: Firebase Google Sign-in; own files: Google Drive (drive.file only).
+   Shared directory: Firestore metadata, NOT private words/progress.
+   No OAuth tokens, service keys, or patient data in public source. */
+(function(){
+'use strict';
+var conf=window.RS_COMMUNITY_CONFIG||{}, fcfg=window.RS_FIREBASE_CONFIG||{};
+var SCOPE='https://www.googleapis.com/auth/drive.file';
+var SHEETS='https://sheets.googleapis.com/v4/spreadsheets', DRIVE='https://www.googleapis.com/drive/v3/files';
+var googleToken='',googleEmail='',tokenClient=null,tokenExpires=0,deviceId='D'+Date.now().toString(36)+Math.floor(Math.random()*1e8).toString(36);
+var sheetId='',busy=false,lastOk=0,clock=null,applying=false,feed=[],users=[],message='Подключение Google Drive не настроено',messageLevel='info';
+var emailState='checking',emailNote='Проверяю статус email…',emailBusy=false,emailChecking=false,lastEmailCheck=0;
+function get(k,f){try{var v=localStorage.getItem(k);return v?JSON.parse(v):f;}catch(e){return f;}}
+function put(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
+function uid(){return window.RS_FAMILY&&window.RS_FAMILY.uid||'';}
+function email(){return window.RS_FAMILY&&window.RS_FAMILY.email||'';}
+function key(t){return 'rs_community_2_'+uid()+'_'+t;}
+function own(k,f){var st=window.RS_FAMILY&&window.RS_FAMILY.storageKey(k);return st?get(st,f):f;}
+function ownPut(k,v){var st=window.RS_FAMILY&&window.RS_FAMILY.storageKey(k);return st?put(st,v):false;}
+function escape(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function setMessage(s,level){message=s;messageLevel=level||'info';var x=document.getElementById('community-status');if(x){x.textContent=s;x.className='operation-status '+messageLevel;}var y=document.getElementById('family-cloud-state');if(y)y.textContent=s;var t=document.getElementById('community-sync-time');if(t)t.textContent=lastOk?'Последняя успешная синхронизация: '+new Date(lastOk).toLocaleString('ru-RU'):'Успешной синхронизации ещё не было';}
+function setSyncBusy(flag){var b=document.getElementById('community-sync-button');if(b){b.disabled=!!flag;b.textContent=flag?'⏳ Синхронизация…':'↻ Синхронизировать';}}
+function emailHTML(){if(emailState==='verified')return '<p class="operation-status success" role="status">✓ Email подтверждён в Firebase</p>';
+ if(emailState==='checking')return '<p class="operation-status working" role="status">◌ '+escape(emailNote)+'</p>';
+ var msg='<p class="operation-status '+(emailState==='error'?'error':'info')+'" role="status">'+escape(emailNote)+'</p>';
+ if(emailState==='error')return msg+'<button class="btn white" data-community="check-email">↻ Повторить проверку</button>';
+ return msg+'<div class="btn-row"><button class="btn white" data-community="verify"'+(emailBusy?' disabled':'')+'>'+(emailBusy?'⏳ Отправляю письмо…':'Отправить письмо подтверждения')+'</button><button class="btn white" data-community="check-email"'+(emailBusy?' disabled':'')+'>↻ Проверить подтверждение</button></div>';}
+function renderEmail(){var d=document.getElementById('community-email-box');if(d)d.innerHTML=emailHTML();}
+function checkEmail(){if(!uid()||emailChecking)return Promise.resolve(false);var who=uid();emailChecking=true;lastEmailCheck=Date.now();emailState='checking';emailNote='Проверяю статус через Firebase…';renderEmail();
+ return window.RS_FAMILY.getEmailVerificationStatus().then(function(ok){if(who!==uid())return false;emailState=ok?'verified':'unverified';emailNote=ok?'Email подтверждён':'Email пока не подтверждён. Если ссылка открыта, проверь ещё раз.';renderEmail();return ok;}).catch(function(e){if(who===uid()){emailState='error';emailNote='Ошибка проверки: '+String(e.message||e);renderEmail();}return false;}).then(function(ok){emailChecking=false;return ok;});}
+function requestEmail(){if(emailBusy||emailChecking||emailState==='verified'||!uid())return;var who=uid();emailBusy=true;emailNote='Отправляю письмо…';renderEmail();window.RS_FAMILY.sendVerify().then(function(){if(who===uid()){emailBusy=false;emailNote='Письмо отправлено. Проверь входящие и Спам, затем нажми «Проверить подтверждение».';renderEmail();}}).catch(function(e){if(who===uid()){emailBusy=false;emailNote='Не удалось отправить письмо: '+String(e.message||e);renderEmail();}});}
+
+function configured(){return /^[0-9A-Za-z_-]{8,}\.apps\.googleusercontent\.com$/.test(conf.googleOAuthClientId||'');}
+function call(method,url,body,token){return new Promise(function(resolve,reject){var x=new XMLHttpRequest();x.open(method,url,true);x.timeout=30000;x.setRequestHeader('Accept','application/json');if(token)x.setRequestHeader('Authorization','Bearer '+token);if(body!==undefined&&body!==null)x.setRequestHeader('Content-Type','application/json');x.onload=function(){var v={};try{v=JSON.parse(x.responseText||'{}');}catch(e){}if(x.status>=200&&x.status<300)resolve(v);else reject(Error((v.error&&v.error.message)||('HTTP '+x.status)));};x.onerror=function(){reject(Error('Ошибка сети'));};x.ontimeout=function(){reject(Error('Сервер не ответил'));};x.send(body===undefined||body===null?null:JSON.stringify(body));});}
+function drive(method,url,body){if(!googleToken||Date.now()>tokenExpires) return Promise.reject(Error('Подключи Google Drive снова'));return call(method,url,body,googleToken);}
+function firebase(method,path,body){return window.RS_FAMILY.getToken().then(function(t){return call(method,'https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(fcfg.projectId)+'/databases/(default)/documents/'+path,body,t);});}
+function kv(s){return encodeURIComponent(s);}
+function connectDrive(){if(!uid()){setMessage('Сначала войди в личный аккаунт');return;}
+ if(!configured()){setMessage('В файле config.js ещё не указан Google OAuth Client ID');return;}
+ if(!window.google||!google.accounts||!google.accounts.oauth2){setMessage('Модуль входа Google недоступен: проверь интернет или браузер');return;}
+ tokenClient=google.accounts.oauth2.initTokenClient({client_id:conf.googleOAuthClientId,scope:SCOPE,callback:function(response){
+  if(!response||!response.access_token){setMessage('Google не предоставил разрешение');return;}
+  var proposed=response.access_token;call('GET','https://www.googleapis.com/drive/v3/about?fields='+kv('user(emailAddress)'),null,proposed).then(function(me){
+   var selected=(me.user&&me.user.emailAddress)||'';
+   if(!selected||String(selected).toLowerCase()!==String(email()).toLowerCase())throw Error('Google Drive должен принадлежать аккаунту '+email()+'. Выбери этот Google-аккаунт.');
+   googleToken=proposed;googleEmail=selected;tokenExpires=Date.now()+(Number(response.expires_in)||3400)*1000-60000;
+   setMessage('Google Drive подключён: '+googleEmail);return findOrCreateSheet();
+  }).then(function(){return sync();}).then(function(){refreshView();}).catch(function(e){googleToken='';setMessage('Google Drive: '+e.message);});
+ },error_callback:function(e){setMessage('Ошибка входа Google; проверь разрешения браузера');}});
+ tokenClient.requestAccessToken({prompt:'consent'});
+}
+function findOrCreateSheet(){if(!uid())return Promise.reject(Error('Нет личного аккаунта'));var cached=get(key('sheet'),null);if(cached&&cached.id){sheetId=cached.id;return drive('GET',SHEETS+'/'+kv(sheetId)+'?fields=spreadsheetId').then(function(){return sheetId;}).catch(function(){sheetId='';return listSheets();});}return listSheets();}
+function listSheets(){var query="name = 'Riveria Sanasto Private v2' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false";
+ return drive('GET',DRIVE+'?q='+kv(query)+'&fields='+kv('files(id,name,createdTime),nextPageToken')+'&pageSize=100').then(function(r){var a=r.files||[];a.sort(function(x,y){return String(x.createdTime).localeCompare(String(y.createdTime));});if(a.length){sheetId=a[0].id;put(key('sheet'),{id:sheetId});if(a.length>1)setMessage('Найдены несколько личных таблиц; используется самая ранняя.');return sheetId;}return createSheet();});}
+function createSheet(){return drive('POST',SHEETS,{properties:{title:'Riveria Sanasto Private v2'},sheets:[{properties:{title:'Events',gridProperties:{rowCount:3000,columnCount:6,frozenRowCount:1}}},{properties:{title:'About',gridProperties:{rowCount:15,columnCount:3}}}]}).then(function(r){if(!r.spreadsheetId)throw Error('Не создана таблица');sheetId=r.spreadsheetId;put(key('sheet'),{id:sheetId});return drive('PUT',SHEETS+'/'+kv(sheetId)+'/values/'+kv('Events!A1:F1')+'?valueInputOption=RAW',{range:'Events!A1:F1',majorDimension:'ROWS',values:[['event_id','timestamp','device_id','type','target_id','json_data']]}).then(function(){return sheetId;});});}
+function snapshot(){return {scores:own('rs_scores_v1',{}),words:own('rs_user_words_v1',[]),fav:own('rs_favorites_v1',{}),fm:own('rs_favorite_meta_v1',{}),deleted:own('rs_deleted_words_v1',{}),scope:own('rs_family_scope_v1',{}),subs:get(key('subs'),{})};}
+function cleanState(o){var m={},x,k;(o.words||[]).forEach(function(w){if(w&&w.id)m[w.id]=w;});return {scores:o.scores||{},words:m,fav:o.fav||{},fm:o.fm||{},deleted:o.deleted||{},scope:o.scope||{},subs:o.subs||{}};}
+function stable(v){return JSON.stringify(v===undefined?null:v);}
+function eid(){return 'E'+Date.now().toString(36)+Math.floor(Math.random()*1e12).toString(36);}
+function capture(force){if(!uid()||applying||window.RS_V3_RELEASE&&window.RS_V3_RELEASE.isActive())return;var cur=cleanState(snapshot()),prev=get(key('observed'),null)||{scores:{},words:{},fav:{},fm:{},deleted:{},subs:{},scope:{}};
+ var q=get(key('queue'),[]),n=Date.now(),kind;function diff(type,items,old){Object.keys(items||{}).forEach(function(id){if(force||stable(items[id])!==stable((old||{})[id]))q.push({id:eid(),time:n,device:deviceId,kind:type,target:id,data:items[id]});});}
+ diff('score',cur.scores,prev.scores);diff('word',cur.words,prev.words);diff('fav',cur.fm,prev.fm);diff('delete',cur.deleted,prev.deleted);diff('subscribe',cur.subs,prev.subs);
+ if(force||stable(cur.scope)!==stable(prev.scope))q.push({id:eid(),time:n,device:deviceId,kind:'scope',target:'scope',data:cur.scope});
+ put(key('queue'),q);put(key('observed'),cur);if(q.length)setMessage(q.length+' локальных изменений ожидают Google Drive');}
+function onLocalChange(){if(window.RS_V3_RELEASE&&window.RS_V3_RELEASE.isActive())return;capture(false);if(window.RS_ACCOUNT)window.RS_ACCOUNT.onLocalChange();if(clock)clearTimeout(clock);clock=setTimeout(function(){if(googleToken&&navigator.onLine)sync();},4500);}
+function materialize(events){var out={scores:{},words:{},fav:{},fm:{},deleted:{},subs:{},scope:{value:'mine',updatedAt:0}};
+ var vs={word:{},fav:{},delete:{},subscribe:{},scope:0};events.sort(function(a,b){return a.time-b.time||a.id.localeCompare(b.id);});
+ events.forEach(function(ev){if(!ev||!ev.kind)return;var id=ev.target,d=ev.data||{},at=ev.time;
+ if(ev.kind==='score'){var o=out.scores[id]||{correct:0,wrong:0,seen:0,last:0};o.correct=Math.max(+o.correct||0,+d.correct||0);o.wrong=Math.max(+o.wrong||0,+d.wrong||0);o.seen=Math.max(+o.seen||0,+d.seen||0);o.last=Math.max(+o.last||0,+d.last||0);out.scores[id]=o;}
+ else if(ev.kind==='word' && at >= (vs.word[id]||0)){out.words[id]=d;vs.word[id]=at;}
+ else if(ev.kind==='fav' && at >= (vs.fav[id]||0)){out.fm[id]=d;out.fav[id]=!!d.starred;vs.fav[id]=at;}
+ else if(ev.kind==='delete' && at >= (vs.delete[id]||0)){out.deleted[id]=d;vs.delete[id]=at;}
+ else if(ev.kind==='subscribe' && at >= (vs.subscribe[id]||0)){out.subs[id]=d;vs.subscribe[id]=at;}
+ else if(ev.kind==='scope' && at >= vs.scope){out.scope=d;vs.scope=at;}
+ });
+ Object.keys(out.words).forEach(function(id){if(Number(out.deleted[id]||0)>=Number(out.words[id].updatedAt||0))delete out.words[id];});
+ return out;}
+function unpack(rows){var a=[];(rows||[]).forEach(function(row){if(row.length<6)return;try{a.push({id:row[0],time:Number(row[1])||1,device:row[2],kind:row[3],target:row[4],data:JSON.parse(row[5]||'null')});}catch(e){}});return a;}
+function apply(events){
+ if(window.RS_V3_RELEASE&&window.RS_V3_RELEASE.isActive())
+   throw Error('Legacy Drive cannot overwrite active V3 learning data');
+ var state=materialize(events),current=snapshot();applying=true;
+ var changes=[['rs_scores_v1',state.scores],['rs_user_words_v1',Object.keys(state.words).map(function(id){return state.words[id];})],['rs_favorites_v1',state.fav],['rs_favorite_meta_v1',state.fm],['rs_deleted_words_v1',state.deleted],['rs_family_scope_v1',state.scope]];
+ for(var i=0;i<changes.length;i++){if(!ownPut(changes[i][0],changes[i][1])){applying=false;throw Error('Нет места для локального сохранения');}}
+ put(key('subs'),state.subs);put(key('observed'),cleanState(snapshot()));applying=false;
+ if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);
+}
+function sync(){if(window.RS_V3_RELEASE&&window.RS_V3_RELEASE.isActive())return window.RS_V3_RELEASE.refresh();if(!uid()){setMessage('Сначала войди в аккаунт','warning');return Promise.resolve(false);}if(busy){setMessage('Синхронизация уже выполняется','working');return Promise.resolve(false);}var sessionUid=uid();capture(false);if(!navigator.onLine){setMessage('Офлайн: изменения сохранены локально и ожидают синхронизации','warning');return Promise.resolve(false);}if(!googleToken||Date.now()>tokenExpires){setMessage('Сначала подключи Google Drive','warning');return Promise.resolve(false);}busy=true;setSyncBusy(true);setMessage('⏳ Синхронизация идёт: сверяю Google-таблицу…','working');
+ return findOrCreateSheet().then(function(){if(uid()!==sessionUid)throw Error('Аккаунт сменился во время синхронизации');return drive('GET',SHEETS+'/'+kv(sheetId)+'/values/'+kv('Events!A2:F')+'?majorDimension=ROWS');}).then(function(r){
+ var existing=unpack(r.values),ids={};existing.forEach(function(e){ids[e.id]=true;});var waiting=get(key('queue'),[]).filter(function(e){return !ids[e.id];});
+ if(!waiting.length)return existing;
+ var rows=waiting.map(function(e){return [e.id,String(e.time),e.device,e.kind,e.target,JSON.stringify(e.data)];});
+ return drive('POST',SHEETS+'/'+kv(sheetId)+'/values/'+kv('Events!A:F')+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',{range:'Events!A:F',majorDimension:'ROWS',values:rows}).then(function(){return drive('GET',SHEETS+'/'+kv(sheetId)+'/values/'+kv('Events!A2:F')+'?majorDimension=ROWS');}).then(function(newR){return unpack(newR.values);});
+ }).then(function(events){if(uid()!==sessionUid)throw Error('Аккаунт сменился во время синхронизации');var ids={};events.forEach(function(e){ids[e.id]=true;});var still=get(key('queue'),[]).filter(function(e){return !ids[e.id];});put(key('queue'),still);
+ // The local account was live while HTTP requests ran; capture any new changes after apply.
+ apply(events.concat(still));lastOk=Date.now();put(key('last_sync'),lastOk);setMessage(still.length?'Синхронизация частичная: изменения ожидают':'✓ Синхронизировано с личной Google-таблицей',still.length?'warning':'success');if(get(key('stats'),false)&&ownName())updatePublicStats();updateSubscriptionsSilent();return true;
+ }).catch(function(e){setMessage('Ошибка синхронизации: '+e.message,'error');return false;}).then(function(ok){busy=false;setSyncBusy(false);return ok;});}
+function updatePublicStats(){var ss=own('rs_scores_v1',{}),learned=Object.keys(ss).filter(function(id){return (+ss[id].correct||0)>0;}).length;
+ if(learned===get(key('last_stats_count'),-1))return;
+ var data={fields:{alias:{stringValue:ownName()},publicStats:{booleanValue:true},learned:{integerValue:String(learned)},updatedAt:{integerValue:String(Date.now())}}};
+ firebase('PATCH','users/'+kv(uid()),data).then(function(){put(key('last_stats_count'),learned);}).catch(function(){});
+}
+function updateSubscriptionsSilent(){if(!conf.sheetsApiKey||conf.sheetsApiKey.indexOf('PASTE_')===0)return;
+ var s=get(key('subs'),{}),keys=Object.keys(s).filter(function(k){return s[k].active;});if(!keys.length)return;
+ keys.forEach(function(id){var info=s[id];info.id=id;fetchPublicSheet(info).then(function(words){var d=get(key('subdict'),{});d[id]=words;put(key('subdict'),d);if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);}).catch(function(){});});
+}
+function ownName(){return get(key('name'),'');}
+function profile(){var display=(document.getElementById('community-name')||{}).value||ownName()||'';display=String(display).trim().slice(0,40);if(display.length<2){setMessage('Введи имя не короче 2 символов');return;}
+ var show=!!(document.getElementById('community-public-stats')||{}).checked;
+ var ss=own('rs_scores_v1',{}),learned=Object.keys(ss).filter(function(id){return (+ss[id].correct||0)>0;}).length;
+ var data={fields:{alias:{stringValue:display},publicStats:{booleanValue:show},learned:{integerValue:String(learned)},updatedAt:{integerValue:String(Date.now())}}};
+ firebase('PATCH','users/'+kv(uid()),data).then(function(){put(key('name'),display);put(key('stats'),show);if(window.RS_ACCOUNT)window.RS_ACCOUNT.profileSaved(display,show);setMessage('Профиль сохранён в облаке. Имя обновится на других устройствах после проверки аккаунта.','success');}).catch(function(e){setMessage('Профиль не сохранён: '+e.message,'error');});}
+function field(d,key,f){var v=d&&d.fields&&d.fields[key];return v?(v.stringValue!==undefined?v.stringValue:v.integerValue!==undefined?Number(v.integerValue):v.booleanValue!==undefined?v.booleanValue:f):f;}
+function refreshUsers(){if(!uid())return Promise.resolve([]);
+ var url='https://firestore.googleapis.com/v1/projects/'+kv(fcfg.projectId)+'/databases/(default)/documents:runQuery';
+ return window.RS_FAMILY.getToken().then(function(t){return call('POST',url,{structuredQuery:{from:[{collectionId:'users'}],where:{fieldFilter:{field:{fieldPath:'publicStats'},op:'EQUAL',value:{booleanValue:true}}},limit:100}},t);}).then(function(r){users=(r||[]).filter(function(x){return x.document;}).map(function(x){return {alias:field(x.document,'alias','Пользователь'),learned:field(x.document,'learned',0)};});return users;});}
+function refreshLibraries(){if(!uid())return Promise.resolve([]);
+ var url='https://firestore.googleapis.com/v1/projects/'+kv(fcfg.projectId)+'/databases/(default)/documents:runQuery';
+ return window.RS_FAMILY.getToken().then(function(t){return call('POST',url,{structuredQuery:{from:[{collectionId:'libraries'}],where:{fieldFilter:{field:{fieldPath:'visibility'},op:'EQUAL',value:{stringValue:'public'}}},limit:100}},t);}).then(function(r){feed=(r||[]).filter(function(x){return x.document;}).map(function(x){var d=x.document;return {id:d.name.split('/').pop(),title:field(d,'title','Без названия'),category:field(d,'category',''),ownerName:field(d,'ownerName',''),count:field(d,'count',0),sheetId:field(d,'sheetId',''),ownerUid:field(d,'ownerUid','')};});return feed;});}
+function publish(){if(!googleToken||!sheetId){setMessage('Сначала подключи личный Google Drive');return;} if(!ownName()||ownName().length<2){setMessage('Перед публикацией сохрани отображаемое имя в разделе «Мой публичный профиль». Оно не должно содержать email.');return;}
+ var category=(document.getElementById('comm-publish-cat')||{}).value||'',title=((document.getElementById('comm-publish-title')||{}).value||'').trim();
+ if(!title||title.length>80){setMessage('Укажи название словаря (до 80 символов)');return;}
+ var words=own('rs_user_words_v1',[]).filter(function(x){return x.cat===category;});if(!words.length){setMessage('В выбранной теме пока нет собственных слов');return;}
+ if(words.length>3000){setMessage('Для публикации одного словаря допускается до 3000 слов');return;}
+ var id=uid()+'_'+Date.now().toString(36), rows=[['ID','Suomi','Русский','Тема','Пример FI']].concat(words.map(function(x){return [x.id,x.fi,x.ru,x.cat,x.example||''];}));setMessage('Создаю отдельную публичную таблицу без личного прогресса…');
+ drive('POST',SHEETS,{properties:{title:'Riveria Sanasto — '+title},sheets:[{properties:{title:'Words',gridProperties:{rowCount:Math.max(100,rows.length+10),columnCount:5}}}]}).then(function(s){var publicId=s.spreadsheetId;
+ return drive('PUT',SHEETS+'/'+kv(publicId)+'/values/'+kv('Words!A1:E'+rows.length)+'?valueInputOption=RAW',{range:'Words!A1:E'+rows.length,majorDimension:'ROWS',values:rows}).then(function(){return drive('POST',DRIVE+'/'+kv(publicId)+'/permissions?fields=id',{type:'anyone',role:'reader',allowFileDiscovery:false});}).then(function(){var data={fields:{ownerUid:{stringValue:uid()},ownerName:{stringValue:ownName()},title:{stringValue:title},category:{stringValue:category},count:{integerValue:String(words.length)},sheetId:{stringValue:publicId},visibility:{stringValue:'public'},updatedAt:{integerValue:String(Date.now())}}};return firebase('PATCH','libraries/'+kv(id),data);});
+ }).then(function(){setMessage('Словарь опубликован. Его содержимое теперь доступно всем по ссылке; личный прогресс не опубликован.');refreshLibraries().then(renderLibraryView);}).catch(function(e){setMessage('Не удалось опубликовать: '+e.message);});}
+function unpublish(id){var lib=feed.filter(function(x){return x.id===id;})[0];if(!lib||lib.ownerUid!==uid())return;
+ if(!googleToken){setMessage('Для отмены публикации подключи свой Google Drive');return;}
+ if(!window.confirm('Отозвать публичный доступ к файлу и убрать словарь из каталога? Подписчики сохранят старые офлайн-копии, которые уже скачали.'))return;
+ setMessage('Отзываю доступ к публичной таблице…');
+ drive('GET',DRIVE+'/'+kv(lib.sheetId)+'/permissions?fields='+kv('permissions(id,type,role)')).then(function(p){
+  var arr=(p.permissions||[]).filter(function(x){return x.type==='anyone';});
+  return Promise.all(arr.map(function(x){return drive('DELETE',DRIVE+'/'+kv(lib.sheetId)+'/permissions/'+kv(x.id));}));
+ }).then(function(){var body={fields:{ownerUid:{stringValue:uid()},ownerName:{stringValue:lib.ownerName},title:{stringValue:lib.title},category:{stringValue:lib.category},count:{integerValue:String(lib.count)},sheetId:{stringValue:lib.sheetId},visibility:{stringValue:'private'},updatedAt:{integerValue:String(Date.now())}}};return firebase('PATCH','libraries/'+kv(id),body);}).then(function(){setMessage('Публикация отозвана, запись скрыта. Ранее скачанные копии удалить у подписчиков невозможно.');return refreshLibraries();}).then(renderLibraryView).catch(function(e){setMessage('Отмена публикации не завершена: '+e.message);});
+}
+function fetchPublicSheet(info){if(!conf.sheetsApiKey||conf.sheetsApiKey.indexOf('PASTE_')===0)return Promise.reject(Error('В config.js нужен ограниченный API key для чтения публичных Google-таблиц'));
+ return call('GET',SHEETS+'/'+kv(info.sheetId)+'/values/'+kv('Words!A2:E')+'?key='+kv(conf.sheetsApiKey),null,null).then(function(r){var arr=(r.values||[]).filter(function(row){return row[0]&&row[1]&&row[2];}).slice(0,3000).map(function(row){return {id:'lib:'+info.id+':'+row[0],fi:row[1],ru:row[2],cat:'lib:'+info.id,catRu:info.title,example:row[4]||'',libraryId:info.id};});return arr;});}
+function subscribe(id){var lib=feed.filter(function(x){return x.id===id;})[0];if(!lib){setMessage('Библиотека не найдена');return;}
+ setMessage('Загружаю публичные слова…');fetchPublicSheet(lib).then(function(words){var cached=get(key('subdict'),{});cached[id]=words;put(key('subdict'),cached);var subs=get(key('subs'),{});subs[id]={active:true,title:lib.title,sheetId:lib.sheetId,updatedAt:Date.now()};put(key('subs'),subs);onLocalChange();if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);setMessage('Подписка подключена: '+words.length+' слов. Прогресс остаётся личным.');renderLibraryView();}).catch(function(e){setMessage('Подключение словаря: '+e.message);});}
+function unsubscribe(id){var subs=get(key('subs'),{});if(subs[id]){subs[id].active=false;subs[id].updatedAt=Date.now();put(key('subs'),subs);onLocalChange();if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);renderLibraryView();}}
+function subscribedTerms(){var subs=get(key('subs'),{}),dict=get(key('subdict'),{}),out=[];Object.keys(subs).forEach(function(id){if(subs[id].active)out=out.concat(dict[id]||[]);});return out;}
+function updateSubscriptions(){var s=get(key('subs'),{});return refreshLibraries().then(function(){var jobs=Object.keys(s).filter(function(id){return s[id].active;}).map(function(id){var inf=feed.filter(function(x){return x.id===id;})[0]||s[id];inf.id=id;return fetchPublicSheet(inf).then(function(words){var dict=get(key('subdict'),{});dict[id]=words;put(key('subdict'),dict);}).catch(function(){return false;});});return Promise.all(jobs);}).then(function(){if(window.RS_FAMILY_REFRESH)window.RS_FAMILY_REFRESH(false);setMessage('Подписанные словари обновлены (доступные источники)');});}
+function dataPanel(){return '<div class="panel"><h2>☁ Личный Google Drive</h2><p>У каждого участника собственная таблица с журналом изменений. Для синхронизации нужен вход под тем же Google-адресом, что и в приложении. Google-токен не сохраняется в GitHub.</p><div class="btn-row"><button class="btn primary" data-community="drive">Подключить мой Google Drive</button><button class="btn good" id="community-sync-button" data-community="sync"'+(busy?' disabled':'')+'>'+(busy?'⏳ Синхронизация…':'↻ Синхронизировать')+'</button></div><p class="hint">'+escape(sheetId?'Личная таблица: '+sheetId:'Личная таблица будет создана автоматически')+'</p><p id="community-status" class="operation-status '+escape(messageLevel)+'" role="status" aria-live="polite">'+escape(message)+'</p><p class="hint" id="community-sync-time">'+escape(lastOk?'Последняя успешная синхронизация: '+new Date(lastOk).toLocaleString('ru-RU'):'Успешной синхронизации ещё не было')+'</p></div>'+
+ '<div class="panel"><h2>Подтверждение email</h2><p class="hint">Статус проверяется непосредственно в Firebase. При входе через Google почта обычно уже подтверждена.</p><div id="community-email-box" aria-live="polite">'+emailHTML()+'</div></div><div class="panel"><h2>Мой публичный профиль</h2><p class="hint">Имя и счётчик видны другим только по твоему желанию.</p><label class="field"><span>Отображаемое имя</span><input id="community-name" class="control" maxlength="40" value="'+escape(ownName())+'"></label><p><label><input type="checkbox" id="community-public-stats" '+(get(key('stats'),false)?'checked':'')+'> Показывать моё имя и количество выученных слов</label></p><div class="btn-row"><button class="btn white" data-community="profile">Сохранить профиль</button><button class="btn white" data-account="refresh">↻ Проверить на сервере</button></div><p id="account-profile-status" class="hint" role="status">Имя хранится в аккаунте, а не в памяти одного телефона.</p></div>'+
+ '<div class="panel"><h2>Поделиться своим словарём</h2><p class="hint">Создаётся ОТДЕЛЬНАЯ общедоступная Google-таблица только со словами выбранной темы. Личный прогресс остаётся закрытым.</p><label class="field"><span>Название публикуемой коллекции</span><input class="control" id="comm-publish-title" placeholder="Например, Финский для работы"></label><label class="field"><span>Тема из моих слов</span><select id="comm-publish-cat" class="control">'+categories()+'</select></label><p><button class="btn good" data-community="publish">Опубликовать отдельную копию</button></p></div>';
+}
+function categories(){var a={},t='';own('rs_user_words_v1',[]).forEach(function(w){if(w&&w.cat)a[w.cat]=true;});Object.keys(a).forEach(function(k){t+='<option value="'+escape(k)+'">'+escape(k)+'</option>';});return t||'<option value="">Нет личных слов</option>';}
+function renderUsersView(root){root.innerHTML='<div class="panel"><h2>Участники сообщества</h2><p>Показываем только тех, кто добровольно открыл статистику. Никаких адресов почты или чужих личных слов.</p><button class="btn white" data-community="users">↻ Обновить список</button><p id="community-status" class="hint">'+escape(message)+'</p></div><div class="dictionary-list">'+(users.length?users.map(function(p){return '<div class="dict-row"><div><b>'+escape(p.alias)+'</b><p>'+Number(p.learned)+' выученных слов</p></div></div>';}).join(''):'<div class="empty">Пока нет публичных профилей</div>')+'</div>';}
+function renderLibraryView(){var root=document.getElementById('main-content');if(!root||!root.querySelector('#community-library-list'))return;var s=get(key('subs'),{});
+ root.querySelector('#community-library-list').innerHTML=feed.length?feed.map(function(b){var yes=s[b.id]&&s[b.id].active;return '<div class="dict-row"><div><b>'+escape(b.title)+'</b><p>'+escape(b.category)+' · '+Number(b.count)+' слов · '+escape(b.ownerName)+'</p><small>Опубликованная тематическая коллекция</small></div><button class="tiny-btn" data-community="'+(yes?'unsub':'sub')+'" data-id="'+escape(b.id)+'">'+(yes?'Отключить':'Подключить')+'</button>'+(b.ownerUid===uid()?'<button class="tiny-btn" data-community="unpublish" data-id="'+escape(b.id)+'">Отозвать доступ</button>':'')+'</div>';}).join(''):'<div class="empty">Публичные словари пока не найдены</div>';}
+function renderLibrary(root){root.innerHTML='<div class="panel"><h2>Общая библиотека</h2><p>Любой владелец может опубликовать отдельную копию своих слов. Чужие словари подключаются для изучения, но не меняют прогресс автора.</p><div class="btn-row"><button class="btn white" data-community="libraries">↻ Найти словари</button><button class="btn white" data-community="refresh-subs">Обновить подписки</button></div><p id="community-status" class="hint">'+escape(message)+'</p></div><div class="dictionary-list" id="community-library-list"></div>';renderLibraryView();}
+function refreshView(){var root=document.getElementById('main-content');if(root&&root.querySelector('#community-library-list'))renderLibraryView();}
+function onAuth(){googleToken='';sheetId='';lastOk=Number(get(key('last_sync'),0))||0;message='Войди в Google Drive для личной синхронизации';messageLevel='info';var old=get(key('sheet'),null);if(old)sheetId=old.id||'';emailState='checking';emailNote='Проверяю почту…';emailBusy=false;emailChecking=false;setMessage(message);checkEmail();if(window.RS_ACCOUNT)window.RS_ACCOUNT.onAuth();}
+function onLogout(){googleToken='';googleEmail='';sheetId='';lastOk=0;feed=[];users=[];emailState='checking';emailNote='Войди для проверки email';emailBusy=false;emailChecking=false;setMessage('Выход из аккаунта');if(window.RS_ACCOUNT)window.RS_ACCOUNT.onLogout();}
+function init(){document.addEventListener('click',function(e){var b=e.target.closest?e.target.closest('[data-community]'):null;if(!b)return;var act=b.getAttribute('data-community'),id=b.getAttribute('data-id');if(act==='drive')connectDrive();else if(act==='sync')sync();else if(act==='verify')requestEmail();else if(act==='check-email')checkEmail();else if(act==='profile')profile();else if(act==='publish')publish();else if(act==='users'){refreshUsers().then(function(){renderUsersView(document.getElementById('main-content'));}).catch(function(e){setMessage(e.message);});}else if(act==='libraries'){refreshLibraries().then(renderLibraryView).catch(function(e){setMessage(e.message);});}else if(act==='sub')subscribe(id);else if(act==='unsub')unsubscribe(id);else if(act==='unpublish')unpublish(id);else if(act==='refresh-subs')updateSubscriptions();});
+ document.addEventListener('visibilitychange',function(){if(!document.hidden&&uid()){if(googleToken&&Date.now()-lastOk>120000)sync();if(emailState!=='verified'&&!emailChecking&&Date.now()-lastEmailCheck>5000)checkEmail();}});window.addEventListener('focus',function(){if(uid()&&emailState!=='verified'&&!emailChecking&&Date.now()-lastEmailCheck>5000)checkEmail();});window.addEventListener('online',function(){if(googleToken)sync();});}
+window.RS_COMM={sync:sync,onLocalChange:onLocalChange,onAuth:onAuth,onLogout:onLogout,dataPanel:dataPanel,renderUsers:renderUsersView,renderLibrary:renderLibrary,subscribedTerms:subscribedTerms,refreshLibraries:refreshLibraries,refreshUsers:refreshUsers,connectDrive:connectDrive,updateSubscriptions:updateSubscriptions,materialize:materialize,unpack:unpack};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
