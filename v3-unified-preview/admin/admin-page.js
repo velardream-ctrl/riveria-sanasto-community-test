@@ -5,7 +5,7 @@
  */
 (function(w,d){
  'use strict';
- var config=w.RS_FIREBASE_CONFIG||{},auth=null,db=null,authorized=false,report=null,tab='overview',locale='ru',busy=false;
+ var config=w.RS_FIREBASE_CONFIG||{},auth=null,db=null,authorized=false,report=null,tab='overview',locale='ru',busy=false,session=0,activeUser=null,forcedUser=null;
  var tabs=['overview','errors','browsers','sync','backups','updates','audit'];
  var labels={
  ru:{title:'Администрирование',sub:'Закрытый кабинет • тестовый сайт',checking:'Проверяю права администратора…',
@@ -106,35 +106,81 @@
    action.addEventListener('click',read);
    add(p,'p','muted',report?t().noPersonal:t().missing);
  }
- function read(){
-   if(!authorized||busy)return;
-   busy=true;var u=el('auth-status');if(u)u.textContent=t().loading;
-   db.collection('admin_metrics').doc('current').get({source:'server'}).then(function(snapshot){
-     report=snapshot&&snapshot.exists?snapshot.data():null;
-     busy=false;text('auth-status',report?'':t().missing);render();
-   },function(){
-     report=null;busy=false;text('auth-status',t().failed);render();
-   });
+ function clearAccess(message){
+   authorized=false;report=null;busy=false;
+   show('admin-root',false);
+   wipe(el('admin-tabs'));wipe(el('admin-view'));
+   text('auth-status',message);
  }
- function denied(message){authorized=false;show('admin-root',false);text('auth-status',message);}
- function login(){
-   locale=defaultLang();
-   paintLanguage();
-   if(!w.firebase||!w.firebase.auth||!w.firebase.firestore||
-       config.projectId!=='sanastoyhteiso-v3-development'){denied(t().notReady);return;}
+ function sameSession(n,user){
+   return authorized&&n===session&&activeUser===user&&auth&&auth.currentUser===user;
+ }
+ function read(){
+   if(!authorized||busy||!sameSession(session,activeUser))return;
+   var n=session,user=activeUser;
+   busy=true;text('auth-status',t().loading);
+   function failed(){
+     if(!sameSession(n,user))return;
+     report=null;busy=false;text('auth-status',t().failed);render();
+   }
    try{
-     if(!w.firebase.apps.length)w.firebase.initializeApp(config);
+     db.collection('admin_metrics').doc('current').get({source:'server'}).then(function(snapshot){
+       if(!sameSession(n,user))return;
+       try{
+         report=snapshot&&snapshot.exists?snapshot.data():null;
+       }catch(ignore){failed();return;}
+       busy=false;text('auth-status',report?'':t().missing);render();
+     },failed);
+   }catch(ignore){failed();}
+ }
+ function denied(message){
+   session++;activeUser=null;forcedUser=null;clearAccess(message);
+ }
+ function onToken(user){
+   var n=++session;
+   if(user!==activeUser)forcedUser=null;
+   activeUser=user;clearAccess(t().checking);
+   if(!user||user.emailVerified!==true||user.isAnonymous===true){
+     clearAccess(t().signIn);return;
+   }
+   var force=forcedUser!==user;
+   forcedUser=user;
+   try{
+     user.getIdTokenResult(force).then(function(result){
+       if(n!==session||activeUser!==user||!auth||auth.currentUser!==user)return;
+       if(!result||!result.claims||result.claims.admin!==true){
+         clearAccess(t().denied);return;
+       }
+       authorized=true;show('admin-root',true);read();
+     },function(){
+       if(n===session&&activeUser===user&&auth&&auth.currentUser===user)
+         clearAccess(t().authError);
+     });
+   }catch(ignore){
+     if(n===session&&activeUser===user)clearAccess(t().authError);
+   }
+ }
+ function login(){
+   locale=defaultLang();paintLanguage();
+   if(!w.firebase||typeof w.firebase.auth!=='function'||
+       typeof w.firebase.firestore!=='function'||!w.firebase.apps||
+       config.projectId!=='sanastoyhteiso-v3-development'||
+       config.authDomain!=='sanastoyhteiso-v3-development.firebaseapp.com'||
+       typeof config.apiKey!=='string'||!config.apiKey){
+     denied(t().notReady);return;
+   }
+   try{
+     var app=w.firebase.apps.length?w.firebase.app():w.firebase.initializeApp(config);
+     if(!app||!app.options||app.options.projectId!==config.projectId||
+         app.options.authDomain!==config.authDomain||app.options.apiKey!==config.apiKey){
+       denied(t().notReady);return;
+     }
      auth=w.firebase.auth();db=w.firebase.firestore();
-     auth.onAuthStateChanged(function(user){
-       if(!user||!user.emailVerified){denied(t().signIn);return;}
-       text('auth-status',t().checking);
-       user.getIdTokenResult(true).then(function(result){
-         if(auth.currentUser!==user)return;
-         if(!result||!result.claims||result.claims.admin!==true){denied(t().denied);return;}
-         authorized=true;show('admin-root',true);read();
-       },function(){denied(t().authError);});
-     },function(){denied(t().authError);});
-   }catch(error){denied(t().notReady);}
+     if(!auth||typeof auth.onIdTokenChanged!=='function'||!db){
+       denied(t().notReady);return;
+     }
+     auth.onIdTokenChanged(onToken,function(){denied(t().authError);});
+   }catch(ignore){denied(t().notReady);}
  }
  function defaultLang(){
    var x=(w.navigator.language||'ru').slice(0,2);
