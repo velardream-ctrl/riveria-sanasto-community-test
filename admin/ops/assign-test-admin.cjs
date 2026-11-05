@@ -21,6 +21,25 @@ function mergeClaims(existing) {
   const original = existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
   return Object.assign({}, original, {admin: true});
 }
+// Compare a fresh privileged read with the state shown before interactive approval.
+// This is a fail-closed pre-write check, NOT an atomic Admin SDK CAS transaction.
+function stableJson(value) {
+  if (Array.isArray(value)) return value.map(stableJson);
+  if (value !== null && typeof value === 'object') {
+    const sorted = Object.create(null);
+    for (const key of Object.keys(value).sort()) sorted[key] = stableJson(value[key]);
+    return sorted;
+  }
+  return value;
+}
+function sameAccountSnapshot(before, after) {
+  if (validateAccount(before) || validateAccount(after)) return false;
+  if (before.uid !== after.uid || before.email !== after.email) return false;
+  const providers = u => (u.providerData || []).map(p => p && p.providerId).sort();
+  const claims = u => u.customClaims || {};
+  return JSON.stringify(providers(before)) === JSON.stringify(providers(after)) &&
+    JSON.stringify(stableJson(claims(before))) === JSON.stringify(stableJson(claims(after)));
+}
 function runMode(args) {
   if (args.length === 0 || (args.length === 1 && args[0] === '--dry-run')) return 'dry-run';
   if (args.length === 1 && args[0] === '--apply') return 'apply';
@@ -69,12 +88,19 @@ async function main() {
     if (email !== user.email) throw Error('Account email did not match; no changes');
     const confirmation = (await ask('Type exactly GRANT TEST ADMIN to approve one account change: ')).trim();
     if (confirmation !== 'GRANT TEST ADMIN') throw Error('Confirmation declined; no changes');
-    const backup = makeBackup(uid, originalClaims);
+    // The user could have been modified while the owner read the prompts.
+    // A second read prevents overwriting claims already changed before it.
+    const fresh = await auth.getUser(uid);
+    if (!sameAccountSnapshot(user, fresh)) {
+      throw Error('TEST account or custom claims changed during confirmation; STOP without write');
+    }
+    const freshClaims = Object.assign({}, fresh.customClaims || {});
+    const backup = makeBackup(uid, freshClaims);
     console.log('Prior claims backed up LOCALLY (0600) to ' + backup);
-    await auth.setCustomUserClaims(uid, mergeClaims(originalClaims));
+    await auth.setCustomUserClaims(uid, mergeClaims(freshClaims));
     const latest = await auth.getUser(uid);
     if (!latest.customClaims || latest.customClaims.admin !== true) throw Error('Post-write verification failed: investigate before retrying');
-    for (const [k,v] of Object.entries(originalClaims)) {
+    for (const [k,v] of Object.entries(freshClaims)) {
       if (k !== 'admin' && JSON.stringify(latest.customClaims[k]) !== JSON.stringify(v))
         throw Error('Unexpected change to other claims: manual review required');
     }
@@ -83,4 +109,4 @@ async function main() {
   } finally {rl.close();}
 }
 if (require.main === module) main().catch(err => {console.error('STOP:',err.message);process.exitCode=1;});
-module.exports={PROJECT_ID,validateAccount,mergeClaims,runMode};
+module.exports={PROJECT_ID,validateAccount,mergeClaims,runMode,sameAccountSnapshot};
