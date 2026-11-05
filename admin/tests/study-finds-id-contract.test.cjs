@@ -19,7 +19,7 @@ function ev(target,added=true){
   return {id,device,kind:'collection_set',target,time:stamp,data:payload(added)};
 }
 function base(findTargets){
-  const finds={};
+  const finds=Object.create(null);
   for(const target of findTargets)finds[target]={
     added:true,topic:'study',note:'',updatedAt:stamp
   };
@@ -57,7 +57,7 @@ test('false tombstone on valid M/P/H is saved instead of deleting selection',()=
 });
 test('shadow snapshot permits only the same approved ID families and preserves values',()=>{
   const original=base(supported),normalized=shadow.snapshot(original);
-  assert.deepEqual(normalized,original);
+  assert.deepEqual(normalized,JSON.parse(JSON.stringify(original)));
   normalized.finds.M12345.note='modified synthetic';
   assert.equal(original.finds.M12345.note,'','normalization must clone');
 });
