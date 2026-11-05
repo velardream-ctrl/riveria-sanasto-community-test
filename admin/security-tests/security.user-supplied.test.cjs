@@ -40,7 +40,7 @@ before(async()=>{
   const baseline=fs.readFileSync(path.join(fixtureDir,'firestore.user-supplied-20261105.baseline.rules'),'utf8');
   const additive=fs.readFileSync(path.join(__dirname,'snapshots/owner-console-rules-20261105.rules'),'utf8');
   const prepared=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_FULL_FOR_MANUAL_REVIEW.rules'),'utf8');
-  if(additive!==prepared)throw Error('Owner-supplied TEST console snapshot differs from reviewed NEW-003 candidate: audit before emulator test');
+  if(additive!==prepared)throw Error('Owner TEST rules snapshot changed from reviewed NEW-003 candidate; inspect mismatch');
   const findsRules=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_NEW006_FINDS_TMPH_REVIEW_ONLY.rules'),'utf8');
   const oldFindsCondition="(request.resource.data.target.matches('^T[0-9]{5,7}$') ||";
   const newFindsCondition="(request.resource.data.target.matches('^[TMPH][0-9]{5,7}$') ||";
@@ -235,37 +235,17 @@ test('NEW-006 prepared candidate rejects unknown public class and cross-user wri
     event('alice',cross,'collection_set',{list:'finds',added:true,topic:'study',note:''},'P00055')));
 });
 
-test('RUN-068: archived TEST console snapshot byte-equals independently reviewed NEW-003 candidate',()=>{
+test('RUN-068: archived TEST console rules snapshot byte-equals reviewed NEW-003 candidate',()=>{
   const archived=fs.readFileSync(path.join(__dirname,'snapshots/owner-console-rules-20261105.rules'),'utf8');
   const candidate=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_FULL_FOR_MANUAL_REVIEW.rules'),'utf8');
   if(archived!==candidate)throw Error('Owner snapshot integrity mismatch: do not silently rewrite evidence');
-  if(!archived.includes("target.matches('^T[0-9]{5,7}
-  const oldId='E_'+'4'.repeat(32);
-  await assertFails(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',oldId),
-    event('alice',oldId,'collection_set',{list:'finds',added:true,topic:'study',note:''},'M00012')));
-  const metric=await assertSucceeds(getDoc(d(who(findsEnv,'admin',admin),'admin_metrics','current')));
-  if(!metric.exists())throw Error('Metrics seed missing in isolated candidate');
-  await assertFails(getDoc(d(who(findsEnv,'bob'),'admin_metrics','current')));
-  await assertSucceeds(getDoc(d(who(findsEnv,'alice'),'users','alice')));
-  await assertFails(getDoc(d(who(findsEnv,'bob'),'users','alice')));
+  if(!archived.includes("target.matches('^T[0-9]{5,7}$')") ||
+     archived.includes("target.matches('^[TMPH][0-9]{5,7}$')"))
+    throw Error('Wrong owner snapshot classification: T-only rules expected');
 });
-)") ||
-     archived.includes("target.matches('^[TMPH][0-9]{5,7}
-  const oldId='E_'+'4'.repeat(32);
-  await assertFails(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',oldId),
-    event('alice',oldId,'collection_set',{list:'finds',added:true,topic:'study',note:''},'M00012')));
-  const metric=await assertSucceeds(getDoc(d(who(findsEnv,'admin',admin),'admin_metrics','current')));
-  if(!metric.exists())throw Error('Metrics seed missing in isolated candidate');
-  await assertFails(getDoc(d(who(findsEnv,'bob'),'admin_metrics','current')));
-  await assertSucceeds(getDoc(d(who(findsEnv,'alice'),'users','alice')));
-  await assertFails(getDoc(d(who(findsEnv,'bob'),'users','alice')));
-});
-)"))
-    throw Error('Wrong owner snapshot classification: T-only snapshot expected');
-});
-test('RUN-068: saved owner TEST rules allow T but reject M/P/H on own uid, deny cross-account',async()=>{
-  const accepted='E_'+'b'.repeat(32);
+test('RUN-068: archived owner TEST rules permit T but reject M/P/H and cross-account writes',async()=>{
   const data={list:'finds',added:true,topic:'study',note:''};
+  const accepted='E_'+'b'.repeat(32);
   await assertSucceeds(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',accepted),
     event('alice',accepted,'collection_set',data,'T12345')));
   for(const [letter,target] of [['c','M00012'],['d','P00055'],['0','H00001']]){
