@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'admin/tests/**'
+      - 'admin/ops/**'
       - 'v3-unified-preview/admin/**'
       - 'v3-unified-preview/admin-entry.js'
       - 'v3-unified-preview/index.html'
@@ -29,7 +30,9 @@ jobs:
           node --check v3-unified-preview/admin-entry.js
           node --check v3-unified-preview/sw.js
           node --check admin/tests/admin-access.test.cjs
+          node --check admin/ops/assign-test-admin.cjs
+          node --check admin/ops/assign-test-admin.test.cjs
       - name: Offline fake-Firebase admin regression
-        run: node --test admin/tests/admin-access.test.cjs
+        run: node --test admin/tests/admin-access.test.cjs admin/ops/assign-test-admin.test.cjs
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
