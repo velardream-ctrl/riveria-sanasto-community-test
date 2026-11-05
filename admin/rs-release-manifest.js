@@ -31,7 +31,11 @@
    if(!NAME.test(m.packageId||''))errors.push('Invalid package id');
    if(m.target!==TARGET)errors.push('Wrong target repository');
    if(!SHA40.test(m.baseCommit||''))errors.push('Invalid base commit');
-   if(expectedBase!==undefined && (!SHA40.test(expectedBase)||m.baseCommit!==expectedBase))
+   // No verified CURRENT HEAD means no trustworthy approval, even for preview.
+   // A future backend must fetch this from GitHub, never accept client input.
+   if(typeof expectedBase!=='string'||!SHA40.test(expectedBase))
+     errors.push('Trusted current base commit missing: review required');
+   else if(m.baseCommit!==expectedBase)
      errors.push('Base commit mismatch: review required');
    if(m.releaseType!=='application'&&m.releaseType!=='catalog')
      errors.push('Unsupported release type');
@@ -50,12 +54,10 @@
      if(seen[p])errors.push('Duplicate path '+p);seen[p]=true;
      if(m.releaseType==='catalog'&&p!=='data.js')errors.push('Catalog may only update data.js');
      if(!SHA64.test(file.sha256||''))errors.push('Invalid SHA-256 for '+p);
-     if(!Number.isSafeInteger || !Number.isSafeInteger(file.bytes)){
-       if(typeof file.bytes!=='number'||file.bytes!==Math.floor(file.bytes))
-         errors.push('Invalid byte size for '+p);
-     }
-     if(file.bytes<1||file.bytes>1048576)errors.push('File exceeds size limit '+p);
-     sum+=file.bytes||0;
+     if(typeof file.bytes!=='number'||!isFinite(file.bytes)||
+        Math.floor(file.bytes)!==file.bytes||file.bytes<1||file.bytes>1048576){
+       errors.push('Invalid or oversized byte size for '+p);
+     }else sum+=file.bytes;
    });
    if(sum>4194304)errors.push('Package exceeds size limit');
    return {valid:errors.length===0,errors:errors,readyToPublish:false,
