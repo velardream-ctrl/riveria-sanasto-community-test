@@ -28,7 +28,7 @@
        e.data.list!=='finds'||typeof e.data.added!=='boolean'||
        ['practice','study','other'].indexOf(e.data.topic)<0||
        typeof e.data.note!=='string'||e.data.note.length>350||
-       !/^(T[0-9]{5,7}|W_[a-f0-9]{32})$/.test(e.target)))
+       !/^([TMPH][0-9]{5,7}|W_[a-f0-9]{32})$/.test(e.target)))
       return false;
     return true;
   }
