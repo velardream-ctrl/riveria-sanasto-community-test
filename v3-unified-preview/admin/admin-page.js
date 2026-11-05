@@ -54,8 +54,19 @@
  function validNum(n){return typeof n==='number'&&isFinite(n)&&n>=0&&Math.floor(n)===n?n:null;}
  function safeLabel(s){return typeof s==='string'&&/^[A-Za-z0-9_. -]{1,64}$/.test(s)?s:null;}
  function at(v){if(v&&typeof v.toMillis==='function')return v.toMillis();if(typeof v==='string'){var n=Date.parse(v);return isFinite(n)?n:0;}return 0;}
- function newest(){return !!(report&&at(report.updatedAt)>0&&Date.now()-at(report.updatedAt)<15*60*1000&&Date.now()>=at(report.updatedAt));}
- function usableReport(){return !!(report&&newest()&&report.monitoringActive===true);}
+ function fresh(x,minutes){var ms=at(x);return ms>0&&Date.now()>=ms&&Date.now()-ms<minutes*60*1000;}
+ function newest(){return !!(report&&fresh(report.updatedAt,15));}
+ // Do not convert a mere lastUpdated timestamp or self-asserted active flag into OK.
+ // Future trusted server aggregators must attest freshness of BOTH pipeline stages.
+ function usableReport(){return !!(report&&newest()&&report.monitoringActive===true&&
+   report.monitoringCoverageVerified===true&&fresh(report.ingestionHeartbeatAt,15)&&
+   fresh(report.aggregationHeartbeatAt,15));}
+ function verifiedBackupDate(){
+   if(!usableReport()||report.backupProviderReadbackVerified!==true||
+      report.backupManifestChecksumVerified!==true||
+      !fresh(report.verifiedBackupAt,30*60))return null;
+   return new Date(at(report.verifiedBackupAt)).toLocaleString();
+ }
  function health(){if(!usableReport())return 'unknown';
    if(report.siteStatus==='problem'||(validNum(report.criticalOpen)||0)>0)return 'problem';
    if(report.siteStatus==='ok'&&report.criticalOpen===0)return 'ok';return 'unknown';}
@@ -89,7 +100,7 @@
         backups:'backupTitle',audit:'auditTitle'}[tab];
       add(z,'h2','',k(heading));
       if(tab==='backups'){
-        add(z,'p','',report&&typeof report.verifiedBackupAt==='string'&&report.verifiedBackupAt.length<35?report.verifiedBackupAt:t().noData);
+        add(z,'p','',verifiedBackupDate()||t().noData);
       }else if(tab==='sync'){
         var sc=current&&report?validNum(report.syncFailures24h):null;
         add(z,'p','',sc===null?t().noData:String(sc));
