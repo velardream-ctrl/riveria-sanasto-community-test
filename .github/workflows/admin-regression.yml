@@ -12,6 +12,7 @@ on:
       - 'v3-unified-preview/admin/**'
       - 'v3-unified-preview/admin-entry.js'
       - 'v3-unified-preview/index.html'
+      - 'v3-unified-preview/v3-sync-*.js'
       - 'v3-unified-preview/sw.js'
       - '.github/workflows/admin-regression.yml'
 permissions:
@@ -54,5 +55,11 @@ jobs:
         run: |
           node --check v3-unified-preview/i18n.js
           node --test admin/tests/i18n-ui-quality.test.cjs
+      - name: Verify V3 My Finds TMPH catalog ID roundtrip (offline only)
+        run: |
+          node --check v3-unified-preview/v3-sync-core.js
+          node --check v3-unified-preview/v3-sync-shadow.js
+          node --check admin/tests/study-finds-id-contract.test.cjs
+          node --test admin/tests/study-finds-id-contract.test.cjs
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
