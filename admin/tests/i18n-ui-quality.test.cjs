@@ -62,8 +62,8 @@ test('Finnish absorbent underwear is correctly spelled',()=>{
 test('localized preview version is synchronized in HTML and offline cache',()=>{
   const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-  assert.match(index,/i18n\.js\?v=v3-approved-ui-3/);
-  assert.match(sw,/i18n\.js\?v=v3-approved-ui-3/);
+  assert.match(index,/i18n\.js\?v=v3-approved-ui-4/);
+  assert.match(sw,/i18n\.js\?v=v3-approved-ui-4/);
   const cache=sw.match(/sanastoyhteiso-v3-unified-preview-(\d{8})-v(\d+)/);
   assert.ok(cache,'TEST cache namespace must be versioned');
   assert.ok(Number(cache[2])>=8,'TEST cache must not regress to an older version');
