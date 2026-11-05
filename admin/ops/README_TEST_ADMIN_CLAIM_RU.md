@@ -23,3 +23,10 @@ The standalone [`assign-test-admin.cjs`](./assign-test-admin.cjs) script **never
 Official: https://firebase.google.com/docs/auth/admin/custom-claims and https://firebase.google.com/docs/admin/setup.
 
 **RUN-020 limits:** no cloud changes from ChatGPT, no automation, no private data upload, no Firebase Functions/billing, no production access, no PR merge.
+
+
+## RUN-055: повторное чтение перед записью и ограничение конкурентности
+
+В режиме `--apply` после подтверждения владельца скрипт теперь **повторно выполняет `getUser(uid)`**, проверяет тот же UID/email, Google-провайдера, активность и подтверждение email, а также все прежние custom claims (включая вложенные значения). Если за время ввода подтверждения что-либо изменилось, операция останавливается **до создания новой резервной копии и до `setCustomUserClaims`**, не меняя чужие роли. При неизменном состоянии 0600 локальная копия создаётся из только что повторно прочитанных claims, и лишь затем может выполняться подтверждённая запись.
+
+**Остаточный риск:** Admin SDK `setCustomUserClaims` заменяет **весь** объект claims и не предлагает атомарный compare-and-swap. Между повторным чтением и самой записью остаётся короткая гонка с другим администратором. Поэтому применять скрипт только при отсутствии параллельного изменения ролей и не использовать как массовый role manager; при сомнении останавливать без применения и повторно проверять аккаунт. Исторический `--dry-run` не меняет данных. Новый код протестирован без облачных запросов, не означает, что owner role уже установлена.
