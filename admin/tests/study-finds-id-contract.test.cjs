@@ -97,7 +97,6 @@ test('TEST HTML and offline cache point to new My Finds source modules',()=>{
     assert.ok(html.includes(marker));
     assert.ok(sw.includes(marker));
   }
-  const cache=sw.match(/sanastoyhteiso-v3-unified-preview-(\d{8})-v(\d+)/);
-  assert.ok(cache,'TEST cache namespace must be versioned');
-  assert.ok(Number(cache[2])>=9,'TEST cache must not regress to an older version');
+  assert.match(sw,/CACHE_NAME='sanastoyhteiso-v3-unified-preview-assets-[0-9a-f]{16}'/,
+    'Offline cache must be content-addressed (exact hash checked by the study shell gate)');
 });
