@@ -41,6 +41,14 @@ test('UI language switching translates V3 My Finds controls in both FI and EN',(
   assert.equal(fi.translate('Учёба'),'Opiskelu');
   assert.equal(en.translate('Другое'),'Other');
 });
+test('V3 sync heading trims source-key whitespace but retains visible trailing spacing',()=>{
+  assert.equal(locale('fi').translate('Синхронизация между устройствами: '),
+    'Synkronointi laitteiden välillä: ');
+  assert.equal(locale('en').translate('Синхронизация между устройствами: '),
+    'Sync across devices: ');
+  assert.equal(locale('ru').translate('Синхронизация между устройствами: '),
+    'Синхронизация между устройствами: ');
+});
 test('dynamic V3 queue count renders in requested UI language',()=>{
   const fi=locale('fi'),en=locale('en'),value='включена · 3 в очереди';
   assert.equal(fi.translate(value),'käytössä · 3 jonossa');
@@ -89,10 +97,10 @@ test('all 256 real UI translation triples remain complete and unique',()=>{
 test('TEST HTML and offline service worker cache both reference new localized modules',()=>{
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-  for(const marker of ['i18n.js?v=v3-approved-ui-3',
+  for(const marker of ['i18n.js?v=v3-approved-ui-4',
     'v3-sync-release.js?v=v3-myfinds-i18n-1']){
     assert.ok(html.includes(marker));
     assert.ok(sw.includes(marker));
   }
-  assert.match(sw,/sanastoyhteiso-v3-unified-preview-20261105-v10/);
+  assert.match(sw,/sanastoyhteiso-v3-unified-preview-20261105-v11/);
 });
