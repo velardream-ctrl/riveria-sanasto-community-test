@@ -55,6 +55,12 @@ jobs:
         run: |
           node --check v3-unified-preview/i18n.js
           node --test admin/tests/i18n-ui-quality.test.cjs
+      - name: Verify ES5 V3 localized controls, queue and private-note separation (offline)
+        run: |
+          node --check v3-unified-preview/i18n.js
+          node --check v3-unified-preview/v3-sync-release.js
+          node --check admin/tests/v3-sync-i18n-runtime.test.cjs
+          node --test admin/tests/v3-sync-i18n-runtime.test.cjs
       - name: Verify V3 My Finds TMPH catalog ID roundtrip (offline only)
         run: |
           node --check v3-unified-preview/v3-sync-core.js
