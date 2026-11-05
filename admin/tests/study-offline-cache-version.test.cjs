@@ -17,7 +17,7 @@ const sandbox={self:{addEventListener:function(type,fn){handlers[type]=fn;}}};
 vm.runInNewContext(swSource,sandbox,{timeout:1000,filename:'sw.js'});
 const urls=Array.from(sandbox.FILES);
 function fileName(url){
-  assert.ok(url==='./'||/^\.\/(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:js|css|html|png|webmanifest)(?:\?[a-z0-9._-]+)?$/.test(url),
+  assert.ok(url==='./'||/^\.\/(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:js|css|html|png|webmanifest)(?:\?v=[a-z0-9._-]+)?$/.test(url),
     'Only safe, relative public shell asset paths are allowed: '+url);
   return url==='./'?'index.html':url.slice(2).split('?')[0];
 }
