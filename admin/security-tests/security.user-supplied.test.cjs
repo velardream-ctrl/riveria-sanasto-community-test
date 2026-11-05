@@ -6,7 +6,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {initializeTestEnvironment,assertFails,assertSucceeds}=require('@firebase/rules-unit-testing');
 const {doc,collection,getDoc,getDocs,setDoc,updateDoc,deleteDoc,query,limit}=require('firebase/firestore');
-let beforeEnv,afterEnv;
+let beforeEnv,afterEnv,findsEnv;
 const verified={email_verified:true,firebase:{sign_in_provider:'google.com'}};
 const admin={...verified,admin:true};
 const eventId='E_'+'a'.repeat(32);
@@ -39,6 +39,12 @@ before(async()=>{
   const fixtureDir=path.join(__dirname,'fixtures');
   const baseline=fs.readFileSync(path.join(fixtureDir,'firestore.user-supplied-20261105.baseline.rules'),'utf8');
   const additive=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_FULL_FOR_MANUAL_REVIEW.rules'),'utf8');
+  const findsRules=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_NEW006_FINDS_TMPH_REVIEW_ONLY.rules'),'utf8');
+  const oldFindsCondition="(request.resource.data.target.matches('^T[0-9]{5,7}$') ||";
+  const newFindsCondition="(request.resource.data.target.matches('^[TMPH][0-9]{5,7}$') ||";
+  if(additive.split(oldFindsCondition).length!==2||
+      findsRules!==additive.replace(oldFindsCondition,newFindsCondition))
+    throw Error('NEW-006 candidate must change only one owner-only My Finds allowlist');
   if(!baseline.includes("kind == 'collection_set'")||!baseline.includes('match /sync_demo_v3/')||
       baseline.includes('match /admin_metrics/'))throw Error('Unexpected baseline for supplied rules');
   if(!additive.includes('NEW-003: TEST only')||!additive.includes("sign_in_provider == 'google.com'"))
@@ -51,8 +57,16 @@ before(async()=>{
   });
   await seed(beforeEnv);
   await seed(afterEnv);
+  findsEnv=await initializeTestEnvironment({
+    projectId:'demo-sanastoyhteiso-owner-rules-new006-finds',firestore:{rules:findsRules}
+  });
+  await seed(findsEnv);
 });
-after(async()=>{if(beforeEnv)await beforeEnv.cleanup();if(afterEnv)await afterEnv.cleanup();});
+after(async()=>{
+  if(beforeEnv)await beforeEnv.cleanup();
+  if(afterEnv)await afterEnv.cleanup();
+  if(findsEnv)await findsEnv.cleanup();
+});
 test('original supplied rules block admin_metrics/current even for verified admin',async()=>{
   await assertFails(getDoc(d(who(beforeEnv,'admin',admin),'admin_metrics','current')));
 });
@@ -207,14 +221,25 @@ test('NEW-006 prepared TEST candidate permits owner My Finds M P H',async()=>{
   const samples=[['6','M00012'],['7','P00055'],['8','H00001']];
   for(const x of samples){
     const id='E_'+x[0].repeat(32);
-    await assertSucceeds(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',id),
+    await assertSucceeds(setDoc(d(who(findsEnv,'alice'),'sync_v3','alice','events',id),
       event('alice',id,'collection_set',{list:'finds',added:true,topic:'study',note:''},x[1])));
   }
 });
 test('NEW-006 prepared candidate rejects unknown public class and cross-user writes',async()=>{
   const bad='E_'+'9'.repeat(32),cross='E_'+'0'.repeat(32);
-  await assertFails(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',bad),
+  await assertFails(setDoc(d(who(findsEnv,'alice'),'sync_v3','alice','events',bad),
     event('alice',bad,'collection_set',{list:'finds',added:true,topic:'study',note:''},'L00012')));
-  await assertFails(setDoc(d(who(afterEnv,'bob'),'sync_v3','alice','events',cross),
+  await assertFails(setDoc(d(who(findsEnv,'bob'),'sync_v3','alice','events',cross),
     event('alice',cross,'collection_set',{list:'finds',added:true,topic:'study',note:''},'P00055')));
+});
+
+test('NEW-006 old admin-only candidate still refuses M while new candidate preserves admin read',async()=>{
+  const oldId='E_'+'4'.repeat(32);
+  await assertFails(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',oldId),
+    event('alice',oldId,'collection_set',{list:'finds',added:true,topic:'study',note:''},'M00012')));
+  const metric=await assertSucceeds(getDoc(d(who(findsEnv,'admin',admin),'admin_metrics','current')));
+  if(!metric.exists())throw Error('Metrics seed missing in isolated candidate');
+  await assertFails(getDoc(d(who(findsEnv,'bob'),'admin_metrics','current')));
+  await assertSucceeds(getDoc(d(who(findsEnv,'alice'),'users','alice')));
+  await assertFails(getDoc(d(who(findsEnv,'bob'),'users','alice')));
 });
