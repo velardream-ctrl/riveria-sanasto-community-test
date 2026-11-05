@@ -15,6 +15,7 @@
    observed=null,lastError='',queue=Promise.resolve(),queued=0,tip='',lastTail='',epoch=0;
  var db=null,auth=null;
  function byId(id){return d.getElementById(id);}
+ function ui(raw){return w.RS_I18N&&typeof w.RS_I18N.translate==='function'?w.RS_I18N.translate(raw):raw;}
  function active(){
    return !!(ready&&engine&&uid&&w.RS_FAMILY&&
      w.RS_FAMILY.uid===uid&&auth&&auth.currentUser&&
@@ -225,8 +226,8 @@
      text('Сначала войди через подтверждённый Google-аккаунт.',true);return Promise.resolve(false);
    }
    var user=auth.currentUser;
-   if(manual&&!consent(user.uid)&&!w.confirm(
-     'Подключить V3 с новой учебной историей? Прежние локальные результаты будут сохранены отдельно, но в текущей статистике может начаться новый отсчёт. Другие пользователи не затрагиваются.'))
+   if(manual&&!consent(user.uid)&&!w.confirm(ui(
+     'Подключить V3 с новой учебной историей? Прежние локальные результаты будут сохранены отдельно, но в текущей статистике может начаться новый отсчёт. Другие пользователи не затрагиваются.')))
      return Promise.resolve(false);
    return attach(user,manual);
  }
@@ -376,8 +377,14 @@
        if(!item)return;
        var line=d.createElement('div');line.className='dict-row';
        var title=d.createElement('p');
-       title.textContent=item.fi+' — '+item.ru+
-         ' · '+found[id].topic+(found[id].note?' · '+found[id].note:'');
+       // Keep personal vocabulary and note as literal text; only translate
+       // the bounded UI topic label, never a user's free-form content.
+       title.textContent=item.fi+' — '+item.ru+' · ';
+       var topicLabel=d.createElement('span');
+       var topicNames={practice:'Практика',study:'Учёба',other:'Другое'};
+       topicLabel.textContent=topicNames[found[id].topic]||'Другое';
+       title.appendChild(topicLabel);
+       if(found[id].note)title.appendChild(d.createTextNode(' · '+found[id].note));
        line.appendChild(title);
        var remove=d.createElement('button');remove.type='button';
        remove.className='tiny-btn';remove.textContent='Убрать из находок';
