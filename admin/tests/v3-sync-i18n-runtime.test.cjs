@@ -102,5 +102,6 @@ test('TEST HTML and offline service worker cache both reference new localized mo
     assert.ok(html.includes(marker));
     assert.ok(sw.includes(marker));
   }
-  assert.match(sw,/sanastoyhteiso-v3-unified-preview-20261105-v11/);
+  assert.match(sw,/CACHE_NAME='sanastoyhteiso-v3-unified-preview-assets-[0-9a-f]{16}'/,
+    'Localized V3 shell cache is now content-addressed, with a separate exact digest check');
 });
