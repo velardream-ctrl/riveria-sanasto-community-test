@@ -67,6 +67,12 @@ jobs:
           node --check v3-unified-preview/v3-sync-shadow.js
           node --check admin/tests/study-finds-id-contract.test.cjs
           node --test admin/tests/study-finds-id-contract.test.cjs
+      - name: Study V3 iOS12 offline shell + content-addressed cache regression (NO cloud)
+        run: |
+          node --check v3-unified-preview/sw.js
+          node --check admin/tests/study-offline-cache-version.test.cjs
+          node --test admin/tests/study-offline-cache-version.test.cjs
+
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
 
