@@ -3,7 +3,6 @@
 // NEVER deploy to working Firebase project riveria-sanasto-community-test.
 // No automatic import, migration, public admin writes or deletion.
 // Tested in emulator with synthetic users before any manual deployment.
-// DRAFT NEW-006: My Finds accepts T/M/P/H and W only after TEST rules review; do not auto-publish.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -82,7 +81,7 @@ service cloud.firestore {
           data.keys().hasAll(['starred']) && data.starred is bool)
         ||
         (kind == 'collection_set' &&
-          (request.resource.data.target.matches('^[TMPH][0-9]{5,7}$') ||
+          (request.resource.data.target.matches('^T[0-9]{5,7}$') ||
            request.resource.data.target.matches('^W_[a-f0-9]{32}$')) &&
           data.keys().hasOnly(['list', 'added', 'topic', 'note']) &&
           data.keys().hasAll(['list', 'added', 'topic', 'note']) &&
