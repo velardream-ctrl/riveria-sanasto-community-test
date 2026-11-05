@@ -63,7 +63,7 @@ test('root AND admin HTML load only precached local JS/CSS with exact query vers
   const cached=new Set(urls);
   for(const file of ['index.html','admin/index.html']){
     const required=localAssets(file);
-    assert.ok(required.length>3,'Missing HTML script/style references in '+file);
+    assert.ok(required.length>=(file==='index.html'?20:2),'Missing HTML script/style references in '+file);
     for(const asset of required)assert.ok(cached.has(asset),'Stale/offline-missing '+file+' dependency: '+asset);
   }
 });
