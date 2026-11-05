@@ -55,7 +55,8 @@
  function safeLabel(s){return typeof s==='string'&&/^[A-Za-z0-9_. -]{1,64}$/.test(s)?s:null;}
  function at(v){if(v&&typeof v.toMillis==='function')return v.toMillis();if(typeof v==='string'){var n=Date.parse(v);return isFinite(n)?n:0;}return 0;}
  function newest(){return !!(report&&at(report.updatedAt)>0&&Date.now()-at(report.updatedAt)<15*60*1000&&Date.now()>=at(report.updatedAt));}
- function health(){if(!report||!newest()||report.monitoringActive!==true)return 'unknown';
+ function usableReport(){return !!(report&&newest()&&report.monitoringActive===true);}
+ function health(){if(!usableReport())return 'unknown';
    if(report.siteStatus==='problem'||(validNum(report.criticalOpen)||0)>0)return 'problem';
    if(report.siteStatus==='ok'&&report.criticalOpen===0)return 'ok';return 'unknown';}
  function k(x){return t()[x]||x;}
@@ -71,13 +72,14 @@
      b.addEventListener('click',function(){tab=key;render();});
    });
    var p=el('admin-view');wipe(p);
+   var current=usableReport();
    if(tab==='overview'){
       var g=add(p,'div','grid','');
       card(g,k('site'),statusDisplay());
       card(g,k('seen'),newest()?new Date(at(report.updatedAt)).toLocaleString():t().noData);
-      card(g,k('count24'),value(report&&validNum(report.errors24h)));
-      card(g,k('active7'),value(report&&validNum(report.active7d)));
-      card(g,k('version'),value(report&&safeLabel(report.releaseVersion)));
+      card(g,k('count24'),value(current&&report?validNum(report.errors24h):null));
+      card(g,k('active7'),value(current&&report?validNum(report.active7d):null));
+      card(g,k('version'),value(current&&report?safeLabel(report.releaseVersion):null));
    } else if(tab==='updates'){
       var x=add(p,'div','panel','');
       add(x,'h2','',k('updateTitle'));add(x,'p','notice',k('blocked'));
@@ -89,9 +91,9 @@
       if(tab==='backups'){
         add(z,'p','',report&&typeof report.verifiedBackupAt==='string'&&report.verifiedBackupAt.length<35?report.verifiedBackupAt:t().noData);
       }else if(tab==='sync'){
-        var sc=report&&validNum(report.syncFailures24h);
+        var sc=current&&report?validNum(report.syncFailures24h):null;
         add(z,'p','',sc===null?t().noData:String(sc));
-      }else if(tab==='errors'&&report&&Array.isArray(report.errorGroups)&&newest()){
+      }else if(tab==='errors'&&current&&report&&Array.isArray(report.errorGroups)){
         // SERVER MUST aggregate and sanitize. Only known code identifiers and counts; NEVER raw messages.
         var count=0;
         report.errorGroups.slice(0,30).forEach(function(x){
