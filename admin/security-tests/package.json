@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "description": "Isolated non-deployable Firestore rule contract for TEST PR only",
   "scripts": {
-    "test:emulator": "firebase emulators:exec --only firestore --project demo-sanastoyhteiso-admin-rules --config firebase.json \"node --test --test-concurrency=1 security.rules.test.cjs security.integrated.test.cjs security.user-supplied.test.cjs\""
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-sanastoyhteiso-admin-rules --config firebase.json \"node --test --test-concurrency=1 security.rules.test.cjs security.integrated.test.cjs security.user-supplied.test.cjs security.telemetry-server-only.test.cjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "6.0.0",
