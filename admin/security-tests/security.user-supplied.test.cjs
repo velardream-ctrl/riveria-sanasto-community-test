@@ -43,7 +43,7 @@ before(async()=>{
   const oldFindsCondition="(request.resource.data.target.matches('^T[0-9]{5,7}$') ||";
   const newFindsCondition="(request.resource.data.target.matches('^[TMPH][0-9]{5,7}$') ||";
   if(additive.split(oldFindsCondition).length!==2||
-      findsRules!==additive.replace(oldFindsCondition,newFindsCondition))
+      findsRules!==additive.replace(oldFindsCondition,()=>newFindsCondition))
     throw Error('NEW-006 candidate must change only one owner-only My Finds allowlist');
   if(!baseline.includes("kind == 'collection_set'")||!baseline.includes('match /sync_demo_v3/')||
       baseline.includes('match /admin_metrics/'))throw Error('Unexpected baseline for supplied rules');
