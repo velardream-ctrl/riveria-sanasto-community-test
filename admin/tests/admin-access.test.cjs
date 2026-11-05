@@ -111,9 +111,12 @@ async function serverAggregate(h,data){
 }
 function sampleAggregate(changes){
   return Object.assign({
-    updatedAt:new Date().toISOString(),monitoringActive:true,siteStatus:'ok',criticalOpen:0,
+    updatedAt:new Date().toISOString(),monitoringActive:true,
+    monitoringCoverageVerified:true,ingestionHeartbeatAt:new Date().toISOString(),
+    aggregationHeartbeatAt:new Date().toISOString(),siteStatus:'ok',criticalOpen:0,
     errors24h:17,active7d:31,releaseVersion:'test-v3',syncFailures24h:23,
-    errorGroups:[{code:'SYNC_OFFLINE',count:7}],verifiedBackupAt:'2026-11-01T10:00:00Z'
+    errorGroups:[{code:'SYNC_OFFLINE',count:7}],verifiedBackupAt:new Date().toISOString(),
+    backupProviderReadbackVerified:true,backupManifestChecksumVerified:true
   },changes||{});
 }
 test('stale monitoring never presents historical aggregate counters or error groups',async()=>{
@@ -150,5 +153,48 @@ test('fresh active server aggregate displays counters while retaining read-only 
   assert.ok(allText(h.elems['admin-view']).includes('SYNC_OFFLINE — 7'));
   openTab(h,'Синхронизация');
   assert.ok(allText(h.elems['admin-view']).includes('23'));
+  assert.equal(h.writes,0);
+});
+
+test('fresh site report without collector proof cannot display OK or counters',async()=>{
+  const h=harness(page);
+  const texts=await serverAggregate(h,sampleAggregate({monitoringCoverageVerified:false}));
+  assert.ok(texts.includes('Нет данных'));
+  for(const text of ['ОК','17','31'])assert.ok(!texts.includes(text));
+  openTab(h,'Ошибки');
+  assert.ok(!allText(h.elems['admin-view']).includes('SYNC_OFFLINE — 7'));
+});
+test('stale or missing ingestion/aggregation heartbeat stops falsely healthy reports',async()=>{
+  for(const edits of [
+    {ingestionHeartbeatAt:null},
+    {aggregationHeartbeatAt:null},
+    {ingestionHeartbeatAt:new Date(Date.now()-3600000).toISOString()},
+    {aggregationHeartbeatAt:new Date(Date.now()-3600000).toISOString()},
+    {ingestionHeartbeatAt:new Date(Date.now()+600000).toISOString()}]){
+    const h=harness(page);const texts=await serverAggregate(h,sampleAggregate(edits));
+    assert.ok(texts.includes('Нет данных'));
+    assert.ok(!texts.includes('17'));
+    assert.ok(!texts.includes('ОК'));
+  }
+});
+test('backup is NO DATA without separate provider SHA or fresh monitoring proof',async()=>{
+  for(const edits of [
+    {backupProviderReadbackVerified:false},
+    {backupManifestChecksumVerified:false},
+    {verifiedBackupAt:'2026-10-01T10:00:00Z'},
+    {monitoringCoverageVerified:false},
+    {verifiedBackupAt:new Date(Date.now()+3600000).toISOString()}]){
+    const h=harness(page);await serverAggregate(h,sampleAggregate(edits));
+    openTab(h,'Резервные копии');
+    const texts=allText(h.elems['admin-view']);
+    assert.ok(texts.includes('Нет данных'),'Must fail closed for '+JSON.stringify(edits));
+    assert.equal(h.writes,0);
+  }
+});
+test('fresh private backup with source SHA+readback flags can show a timestamp, no writes',async()=>{
+  const h=harness(page);await serverAggregate(h,sampleAggregate());
+  openTab(h,'Резервные копии');
+  const texts=allText(h.elems['admin-view']);
+  assert.ok(!texts.includes('Нет данных'));
   assert.equal(h.writes,0);
 });
