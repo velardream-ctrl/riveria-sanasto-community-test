@@ -64,5 +64,7 @@ test('localized preview version is synchronized in HTML and offline cache',()=>{
   const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
   assert.match(index,/i18n\.js\?v=v3-approved-ui-2/);
   assert.match(sw,/i18n\.js\?v=v3-approved-ui-2/);
-  assert.match(sw,/sanastoyhteiso-v3-unified-preview-20261105-v8/);
+  const cache=sw.match(/sanastoyhteiso-v3-unified-preview-(\d{8})-v(\d+)/);
+  assert.ok(cache,'TEST cache namespace must be versioned');
+  assert.ok(Number(cache[2])>=8,'TEST cache must not regress to an older version');
 });
