@@ -50,5 +50,9 @@ jobs:
         run: node --test admin/tests/browser-queue.test.cjs
       - name: TEST-only server ingress replay and quota simulation (no cloud)
         run: node --test admin/tests/ingest-pilot.test.cjs
+      - name: V3 FI/RU/EN UI dictionary and iOS12 syntax quality (offline)
+        run: |
+          node --check v3-unified-preview/i18n.js
+          node --test admin/tests/i18n-ui-quality.test.cjs
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
