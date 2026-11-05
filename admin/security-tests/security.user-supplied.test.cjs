@@ -38,10 +38,10 @@ async function seed(env){
 before(async()=>{
   const fixtureDir=path.join(__dirname,'fixtures');
   const baseline=fs.readFileSync(path.join(fixtureDir,'firestore.user-supplied-20261105.baseline.rules'),'utf8');
-  const additive=fs.readFileSync(path.join(fixtureDir,'firestore.user-supplied-20261105-plus-admin-metrics.rules'),'utf8');
+  const additive=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_FULL_FOR_MANUAL_REVIEW.rules'),'utf8');
   if(!baseline.includes("kind == 'collection_set'")||!baseline.includes('match /sync_demo_v3/')||
       baseline.includes('match /admin_metrics/'))throw Error('Unexpected baseline for supplied rules');
-  if(!additive.includes('EMULATOR ONLY')||!additive.includes("sign_in_provider == 'google.com'"))
+  if(!additive.includes('NEW-003: TEST only')||!additive.includes("sign_in_provider == 'google.com'"))
     throw Error('Not a safe isolated additive fixture');
   beforeEnv=await initializeTestEnvironment({
     projectId:'demo-sanastoyhteiso-owner-rules-before-018',firestore:{rules:baseline}
@@ -186,4 +186,13 @@ test('patched rules deny subscription create into someone else profile',async()=
 });
 test('patched rules deny nonmatches even to admin',async()=>{
   await assertFails(getDoc(d(who(afterEnv,'admin',admin),'hidden','credentials')));
+});
+
+test('complete copy preserves all original rules byte-for-byte except one admin-only addition',()=>{
+  const original=fs.readFileSync(path.join(__dirname,'fixtures/firestore.user-supplied-20261105.baseline.rules'),'utf8');
+  const candidate=fs.readFileSync(path.join(__dirname,'candidates/FIRESTORE_V3_DEVELOPMENT_FULL_FOR_MANUAL_REVIEW.rules'),'utf8');
+  const block="    // NEW-003: TEST only. Trusted backend assigns admin custom claims.\n    // Only the verified Google-signed-in administrator may read one aggregate.\n    match /admin_metrics/{metricId} {\n      allow get: if metricId == 'current' && isAdmin() &&\n        request.auth.token.firebase.sign_in_provider == 'google.com';\n      allow list, create, update, delete: if false;\n    }\n\n";
+  if(!candidate.includes(block))throw Error('NEW-003 admin-only addition is missing');
+  if(candidate.replace(block,'')!==original)
+    throw Error('Original student rules changed: do NOT publish this candidate');
 });
