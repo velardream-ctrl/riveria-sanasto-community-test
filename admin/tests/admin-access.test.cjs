@@ -91,3 +91,64 @@ test('admin scripts stay read-only and service worker scripts match HTML',()=>{
  assert.match(sw,/admin-entry\.js\?v=admin-auth-2/);
  assert.doesNotMatch(page,/\.set\(|\.update\(|\.delete\(/);
 });
+
+
+function allText(node){
+  return [String(node&&node.textContent||'')].concat((node&&node.children||[]).flatMap(allText));
+}
+function openTab(h,label){
+  const button=h.elems['admin-tabs'].children.find(x=>x.textContent===label);
+  assert.ok(button,'Expected tab '+label);
+  button.listeners.click();
+}
+async function serverAggregate(h,data){
+  h.emit(user('test-admin',true));
+  await tick();
+  assert.equal(h.pending.length,1);
+  h.pending[0].resolve({exists:true,data:()=>data});
+  await tick();
+  return allText(h.elems['admin-view']);
+}
+function sampleAggregate(changes){
+  return Object.assign({
+    updatedAt:new Date().toISOString(),monitoringActive:true,siteStatus:'ok',criticalOpen:0,
+    errors24h:17,active7d:31,releaseVersion:'test-v3',syncFailures24h:23,
+    errorGroups:[{code:'SYNC_OFFLINE',count:7}],verifiedBackupAt:'2026-11-01T10:00:00Z'
+  },changes||{});
+}
+test('stale monitoring never presents historical aggregate counters or error groups',async()=>{
+  const h=harness(page);
+  const texts=await serverAggregate(h,sampleAggregate({updatedAt:new Date(Date.now()-3600000).toISOString()}));
+  assert.ok(texts.includes('Нет данных'));
+  for(const old of ['17','31','test-v3'])assert.ok(!texts.includes(old),'Stale value: '+old);
+  openTab(h,'Ошибки');
+  assert.ok(!allText(h.elems['admin-view']).includes('SYNC_OFFLINE — 7'));
+  openTab(h,'Синхронизация');
+  assert.ok(!allText(h.elems['admin-view']).includes('23'));
+});
+test('inactive monitoring hides counters even with a recent timestamp',async()=>{
+  const h=harness(page);
+  const texts=await serverAggregate(h,sampleAggregate({monitoringActive:false}));
+  assert.ok(texts.includes('Нет данных'));
+  for(const old of ['17','31','test-v3'])assert.ok(!texts.includes(old),'Inactive value: '+old);
+  openTab(h,'Ошибки');
+  assert.ok(!allText(h.elems['admin-view']).includes('SYNC_OFFLINE — 7'));
+  openTab(h,'Синхронизация');
+  assert.ok(!allText(h.elems['admin-view']).includes('23'));
+});
+test('future dated server aggregate cannot appear healthy',async()=>{
+  const h=harness(page);
+  const texts=await serverAggregate(h,sampleAggregate({updatedAt:new Date(Date.now()+600000).toISOString()}));
+  assert.ok(texts.includes('Нет данных'));
+  for(const old of ['17','31','test-v3','ОК'])assert.ok(!texts.includes(old),'Future value: '+old);
+});
+test('fresh active server aggregate displays counters while retaining read-only contract',async()=>{
+  const h=harness(page);
+  const texts=await serverAggregate(h,sampleAggregate());
+  for(const expected of ['ОК','17','31','test-v3'])assert.ok(texts.includes(expected),'Missing value: '+expected);
+  openTab(h,'Ошибки');
+  assert.ok(allText(h.elems['admin-view']).includes('SYNC_OFFLINE — 7'));
+  openTab(h,'Синхронизация');
+  assert.ok(allText(h.elems['admin-view']).includes('23'));
+  assert.equal(h.writes,0);
+});
