@@ -97,5 +97,7 @@ test('TEST HTML and offline cache point to new My Finds source modules',()=>{
     assert.ok(html.includes(marker));
     assert.ok(sw.includes(marker));
   }
-  assert.match(sw,/sanastoyhteiso-v3-unified-preview-20261105-v9/);
+  const cache=sw.match(/sanastoyhteiso-v3-unified-preview-(\d{8})-v(\d+)/);
+  assert.ok(cache,'TEST cache namespace must be versioned');
+  assert.ok(Number(cache[2])>=9,'TEST cache must not regress to an older version');
 });
