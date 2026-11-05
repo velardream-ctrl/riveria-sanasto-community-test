@@ -196,3 +196,25 @@ test('complete copy preserves all original rules byte-for-byte except one admin-
   if(candidate.replace(block,'')!==original)
     throw Error('Original student rules changed: do NOT publish this candidate');
 });
+
+
+test('NEW-006 historical owner TEST rules still deny M find (do not rewrite history)',async()=>{
+  const id='E_'+'5'.repeat(32);
+  await assertFails(setDoc(d(who(beforeEnv,'alice'),'sync_v3','alice','events',id),
+    event('alice',id,'collection_set',{list:'finds',added:true,topic:'study',note:''},'M00012')));
+});
+test('NEW-006 prepared TEST candidate permits owner My Finds M P H',async()=>{
+  const samples=[['6','M00012'],['7','P00055'],['8','H00001']];
+  for(const x of samples){
+    const id='E_'+x[0].repeat(32);
+    await assertSucceeds(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',id),
+      event('alice',id,'collection_set',{list:'finds',added:true,topic:'study',note:''},x[1])));
+  }
+});
+test('NEW-006 prepared candidate rejects unknown public class and cross-user writes',async()=>{
+  const bad='E_'+'9'.repeat(32),cross='E_'+'0'.repeat(32);
+  await assertFails(setDoc(d(who(afterEnv,'alice'),'sync_v3','alice','events',bad),
+    event('alice',bad,'collection_set',{list:'finds',added:true,topic:'study',note:''},'L00012')));
+  await assertFails(setDoc(d(who(afterEnv,'bob'),'sync_v3','alice','events',cross),
+    event('alice',cross,'collection_set',{list:'finds',added:true,topic:'study',note:''},'P00055')));
+});
