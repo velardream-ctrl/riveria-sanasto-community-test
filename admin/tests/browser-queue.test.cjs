@@ -173,15 +173,16 @@ test('ES5 source is isolated from pages, no network/local storage APIs',()=>{
 });
 test('ES5 browser VM can execute without CommonJS, network or DOM',()=>{
   const source=fs.readFileSync(path.join(__dirname,'../telemetry/browser-queue.es5.js'),'utf8');
-  const ctx={Date,Object,Array,Math,isFinite};
+  // Keep JS built-ins and config objects in ONE browser realm: injecting a
+  // host Object constructor would incorrectly reject VM-local plain objects.
+  const ctx={};
   vm.runInNewContext(source,ctx,{timeout:1500});
   assert.ok(ctx.RS_TEST_TELEMETRY_QUEUE);
-  const q=ctx.RS_TEST_TELEMETRY_QUEUE.create({project:PROJECT,
-    testModeEnabled:true,build});
-  assert.equal(q.startSession(),true);
-  // Cross-realm environment objects require plain JSON-like objects in their
-  // own realm. Simulate browser event from within the browser VM.
   const answer=vm.runInNewContext(
-    'RS_TEST_TELEMETRY_QUEUE.create({project:"'+PROJECT+'",testModeEnabled:true,build:"'+build+'"}).startSession()',ctx);
+    'var q=RS_TEST_TELEMETRY_QUEUE.create({project:"'+PROJECT+
+    '",testModeEnabled:true,build:"'+build+
+    '"});q.startSession()&&q.enqueue("SYNC_UPLOAD_FAILED",'+
+    '{browser:"SAFARI",browserMajor:12,os:"IOS",network:"OFFLINE"},'+start+')',ctx);
   assert.equal(answer,true);
+  assert.equal(vm.runInNewContext('q.peek('+start+').events.length',ctx),1);
 });
