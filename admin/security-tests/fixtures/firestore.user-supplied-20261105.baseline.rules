@@ -1,0 +1,275 @@
+// SANASTOYHTEISO V3 DEVELOPMENT — ISOLATED STAGING RULES ONLY.
+// Exact Firebase project: sanastoyhteiso-v3-development
+// NEVER deploy to working Firebase project riveria-sanasto-community-test.
+// No automatic import, migration, public admin writes or deletion.
+// Tested in emulator with synthetic users before any manual deployment.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    function own(uid) {
+      return verified() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return verified() && request.auth.token.admin == true;
+    }
+
+    // Keep every profile private in the initial cloud pilot.
+    // Public directory and visibility are separate, future opt-in features.
+    function validProfile() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['alias', 'publicStats', 'learned', 'updatedAt']) &&
+        d.keys().hasOnly(['alias', 'publicStats', 'learned', 'updatedAt']) &&
+        d.alias is string && d.alias.size() >= 2 && d.alias.size() <= 40 &&
+        !d.alias.matches('.*@.*') &&
+        d.publicStats is bool &&
+        d.learned is int && d.learned >= 0 && d.learned <= 1000000 &&
+        d.updatedAt is int && d.updatedAt > 0;
+    }
+    match /users/{uid} {
+      allow get: if own(uid);
+      allow list: if false;
+      allow create: if own(uid) && validProfile() &&
+        request.resource.data.publicStats == false &&
+        request.resource.data.learned == 0;
+      allow update: if own(uid) && validProfile() &&
+        request.resource.data.updatedAt >= resource.data.updatedAt;
+      allow delete: if false;
+    }
+
+    // Existing personal preferences layout, owner only.
+    function validSettings() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['scope', 'subscriptions', 'updatedAt']) &&
+        d.keys().hasOnly(['scope', 'subscriptions', 'updatedAt']) &&
+        d.scope in ['all', 'mine'] &&
+        d.subscriptions is string && d.subscriptions.size() <= 40000 &&
+        d.updatedAt is int && d.updatedAt > 0;
+    }
+    match /settings/{uid} {
+      allow get: if own(uid);
+      allow list: if false;
+      allow create: if own(uid) && validSettings();
+      allow update: if own(uid) && validSettings() &&
+        request.resource.data.updatedAt >= resource.data.updatedAt;
+      allow delete: if false;
+    }
+
+    // Event format is intentionally compatible with v3 offline sync.
+    function validEventPayload() {
+      let kind = request.resource.data.kind;
+      let data = request.resource.data.data;
+      return (
+        (kind == 'answer' &&
+          data.keys().hasOnly(['correct', 'reviewLearned']) &&
+          data.keys().hasAll(['correct']) &&
+          data.correct is bool &&
+          (!data.keys().hasAny(['reviewLearned']) || data.reviewLearned is bool))
+        ||
+        (kind == 'learned_set' &&
+          data.keys().hasOnly(['learned']) &&
+          data.keys().hasAll(['learned']) && data.learned is bool)
+        ||
+        (kind == 'favorite_set' &&
+          data.keys().hasOnly(['starred']) &&
+          data.keys().hasAll(['starred']) && data.starred is bool)
+        ||
+        (kind == 'collection_set' &&
+          (request.resource.data.target.matches('^T[0-9]{5,7}$') ||
+           request.resource.data.target.matches('^W_[a-f0-9]{32}$')) &&
+          data.keys().hasOnly(['list', 'added', 'topic', 'note']) &&
+          data.keys().hasAll(['list', 'added', 'topic', 'note']) &&
+          data.list == 'finds' &&
+          data.added is bool &&
+          data.topic in ['practice', 'study', 'other'] &&
+          data.note is string && data.note.size() <= 350)
+        ||
+        (kind == 'word_delete' &&
+          data.keys().hasOnly(['deleted']) &&
+          data.keys().hasAll(['deleted']) && data.deleted == true)
+        ||
+        (kind == 'word_upsert' &&
+          data.keys().hasOnly(['id', 'fi', 'ru', 'en', 'cat', 'catRu',
+            'example', 'exampleRu', 'level', 'priority', 'updatedAt']) &&
+          data.keys().hasAll(['fi', 'ru']) &&
+          data.fi is string && data.fi.size() >= 1 && data.fi.size() <= 300 &&
+          data.ru is string && data.ru.size() >= 1 && data.ru.size() <= 300 &&
+          data.get('id', request.resource.data.target) == request.resource.data.target &&
+          data.get('en', '') is string && data.get('en', '').size() <= 300 &&
+          data.get('cat', '') is string && data.get('cat', '').size() <= 120 &&
+          data.get('catRu', '') is string && data.get('catRu', '').size() <= 120 &&
+          data.get('example', '') is string && data.get('example', '').size() <= 3000 &&
+          data.get('exampleRu', '') is string && data.get('exampleRu', '').size() <= 3000 &&
+          data.get('level', '') is string && data.get('level', '').size() <= 30 &&
+          data.get('priority', 0) is int && data.get('priority', 0) >= 0 &&
+          data.get('priority', 0) <= 100 &&
+          data.get('updatedAt', 0) is int && data.get('updatedAt', 0) >= 0)
+      );
+    }
+    function validEvent(uid, eventId) {
+      let e = request.resource.data;
+      return e.keys().hasAll(['v', 'uid', 'id', 'device', 'kind', 'target', 'time', 'data']) &&
+        e.keys().hasOnly(['v', 'uid', 'id', 'device', 'kind', 'target', 'time', 'data']) &&
+        e.v == 3 && e.uid == uid && e.id == eventId &&
+        eventId.matches('^E_[a-f0-9]{32}$') &&
+        e.device is string && e.device.matches('^D_[a-f0-9]{32}$') &&
+        e.kind in ['answer', 'learned_set', 'favorite_set', 'word_upsert', 'word_delete', 'collection_set'] &&
+        e.target is string && e.target.size() >= 1 && e.target.size() <= 180 &&
+        e.time is int && e.time > 0 &&
+        e.data is map && validEventPayload();
+    }
+    match /sync_v3/{uid}/events/{eventId} {
+      allow get, list: if own(uid);
+      allow create: if own(uid) && validEvent(uid, eventId);
+      allow update, delete: if false;
+    }
+    match /sync_v3/{uid}/state/baseline {
+      allow get: if own(uid);
+      allow list: if false;
+      // Baseline import requires a separately approved verified backup.
+      allow create, update, delete: if false;
+    }
+    match /sync_v3/{uid}/words/{wordId} {
+      allow get, list: if own(uid);
+      allow create, update, delete: if false;
+    }
+
+    // NEW staging-native library metadata (NO external Google Sheet IDs).
+    // Once published, the whole release is immutable. A future versioning
+    // feature will publish a NEW release instead of silently replacing words.
+    function validLibrary(id) {
+      let d = request.resource.data;
+      return id.matches('^lib_[A-Za-z0-9_-]{8,60}$') &&
+        d.keys().hasAll(['ownerUid', 'title', 'category', 'visibility',
+          'revision', 'wordCount', 'updatedAt']) &&
+        d.keys().hasOnly(['ownerUid', 'title', 'category', 'visibility',
+          'revision', 'wordCount', 'updatedAt']) &&
+        d.ownerUid == request.auth.uid &&
+        d.title is string && d.title.size() >= 2 && d.title.size() <= 90 &&
+        d.category is string && d.category.size() >= 2 && d.category.size() <= 80 &&
+        d.visibility in ['private', 'public'] &&
+        d.revision is int && d.revision >= 1 && d.revision <= 100000 &&
+        d.wordCount is int && d.wordCount >= 0 && d.wordCount <= 100 &&
+        d.updatedAt is int && d.updatedAt > 0;
+    }
+    match /libraries_v3/{libraryId} {
+      allow get: if verified() &&
+        (resource.data.visibility == 'public' ||
+         resource.data.ownerUid == request.auth.uid);
+      // Client queries MUST filter by visibility=='public' or ownerUid==uid.
+      allow list: if verified() &&
+        (resource.data.visibility == 'public' ||
+         resource.data.ownerUid == request.auth.uid);
+      allow create: if verified() && validLibrary(libraryId) &&
+        request.resource.data.visibility == 'private';
+      allow update: if verified() &&
+        resource.data.ownerUid == request.auth.uid &&
+        resource.data.visibility == 'private' &&
+        validLibrary(libraryId) &&
+        request.resource.data.ownerUid == resource.data.ownerUid &&
+        request.resource.data.revision >= resource.data.revision &&
+        request.resource.data.updatedAt >= resource.data.updatedAt;
+      allow delete: if false;
+
+      match /terms/{termId} {
+        function parentPath() {
+          return /databases/$(database)/documents/libraries_v3/$(libraryId);
+        }
+        function canReadTerm() {
+          return verified() && exists(parentPath()) &&
+            (get(parentPath()).data.visibility == 'public' ||
+              get(parentPath()).data.ownerUid == request.auth.uid);
+        }
+        function canEditTerm() {
+          return verified() && exists(parentPath()) &&
+            get(parentPath()).data.ownerUid == request.auth.uid &&
+            get(parentPath()).data.visibility == 'private';
+        }
+        function validTerm() {
+          let t = request.resource.data;
+          return termId.matches('^[A-Za-z0-9_-]{1,90}$') &&
+            t.keys().hasAll(['fi', 'ru', 'en', 'cat']) &&
+            t.keys().hasOnly(['fi', 'ru', 'en', 'cat']) &&
+            t.fi is string && t.fi.size() >= 2 && t.fi.size() <= 120 &&
+            t.ru is string && t.ru.size() >= 2 && t.ru.size() <= 180 &&
+            t.en is string && t.en.size() <= 180 &&
+            t.cat is string && t.cat.size() >= 2 && t.cat.size() <= 80;
+        }
+        allow get, list: if canReadTerm();
+        allow create, update: if canEditTerm() && validTerm();
+        allow delete: if false;
+      }
+    }
+
+    // Subscribing must be voluntary and account-local.
+    function validSubscription(libraryId) {
+      let d = request.resource.data;
+      return d.keys().hasAll(['libraryId', 'revision', 'addedAt', 'enabled']) &&
+        d.keys().hasOnly(['libraryId', 'revision', 'addedAt', 'enabled']) &&
+        d.libraryId == libraryId &&
+        d.revision is int && d.revision >= 1 && d.revision <= 100000 &&
+        d.addedAt is int && d.addedAt > 0 &&
+        d.enabled is bool &&
+        exists(/databases/$(database)/documents/libraries_v3/$(libraryId)) &&
+        get(/databases/$(database)/documents/libraries_v3/$(libraryId)).data.visibility == 'public';
+    }
+    match /library_subscriptions_v3/{uid}/items/{libraryId} {
+      allow get, list: if own(uid);
+      allow create: if own(uid) && validSubscription(libraryId);
+      allow update: if own(uid) && validSubscription(libraryId) &&
+        request.resource.data.addedAt == resource.data.addedAt &&
+        request.resource.data.revision >= resource.data.revision;
+      allow delete: if false;
+    }
+
+    // Aggregated admin metrics only, no admin browser writes.
+    match /site_admin/{docId} {
+      allow get: if isAdmin();
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // ISOLATED, DELETABLE PILOT EVENTS — new project only.
+    match /sync_demo_v3/{uid}/events/{eventId} {
+      allow get: if own(uid);
+      allow list: if own(uid) && request.query.limit != null &&
+        request.query.limit <= 100;
+      allow create: if own(uid) &&
+        eventId.matches('^P_[a-f0-9]{32}$') &&
+        request.resource.data.keys().hasAll([
+          'v', 'uid', 'id', 'device', 'kind', 'target', 'time', 'correct', 'demo'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'v', 'uid', 'id', 'device', 'kind', 'target', 'time', 'correct', 'demo'
+        ]) &&
+        request.resource.data.v == 1 &&
+        request.resource.data.uid == uid &&
+        request.resource.data.id == eventId &&
+        request.resource.data.device is string &&
+        request.resource.data.device.matches('^D_[a-f0-9]{32}$') &&
+        request.resource.data.kind == 'answer' &&
+        request.resource.data.target in [
+          'DEMO_CARD_A', 'DEMO_CARD_B', 'DEMO_CARD_C'
+        ] &&
+        request.resource.data.time is int &&
+        request.resource.data.time > 0 &&
+        request.resource.data.correct is bool &&
+        request.resource.data.demo == true;
+      allow update: if false;
+      // Only the owner may delete this synthetic demonstration event.
+      allow delete: if own(uid) && resource.data.demo == true &&
+        resource.data.uid == uid && resource.data.id == eventId;
+    }
+
+    // Deny every unrecognized or legacy collection in this independent project.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
