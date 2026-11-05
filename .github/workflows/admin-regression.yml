@@ -69,3 +69,25 @@ jobs:
           node --test admin/tests/study-finds-id-contract.test.cjs
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
+
+      - name: Known-red NEW-009 refresh regression (isolated, not a fix)
+        shell: bash
+        run: |
+          # This test is deliberately excluded from release gates while RUN-062
+          # source fix is blocked. Reproduce exactly the three broken invariants.
+          node --check admin/tests/v3-sync-refresh-failclosed-gate.test.cjs
+          set +e
+          V3_SYNC_ASSERT_FIXED=1 node --test admin/tests/v3-sync-refresh-failclosed-gate.test.cjs > /tmp/v3-known-red.tap 2>&1
+          result=$?
+          set -e
+          cat /tmp/v3-known-red.tap
+          if [ "$result" -eq 0 ]; then
+            echo "::notice::NEW-009 no longer reproduced; require independent fix review before closing."
+          elif grep -Fq "not ok 1 - cloud success MUST NOT be reported" /tmp/v3-known-red.tap &&
+               grep -Fq "not ok 2 - pending IndexedDB events MUST prevent" /tmp/v3-known-red.tap &&
+               grep -Fq "not ok 3 - successful refresh MUST apply" /tmp/v3-known-red.tap; then
+            echo "::warning::NEW-009 KNOWN RED: all three regressions reproduced, source NOT fixed."
+          else
+            echo "::error::Unexpected regression harness failure; cannot classify as the known defect."
+            exit 1
+          fi
