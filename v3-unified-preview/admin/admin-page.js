@@ -21,7 +21,8 @@
   backupTitle:'Последняя проверенная копия',auditTitle:'Последние действия администратора',
   updateTitle:'Загрузка одного пакета обновления',blocked:'Функция публикации заблокирована до подключения защищённого сервера, проверки подписи/хэшей, тестов и возможности отката. Текущая страница не обновляет GitHub.',
   refresh:'Обновить сводку',missing:'Серверные метрики пока не подключены. Журнал ошибок остальных учеников недоступен.',
-  noPersonal:'Личные ответы и приватные словари учеников здесь не показываются.'},
+  noPersonal:'Личные ответы и приватные словари учеников здесь не показываются.',
+  localErrors:'Ошибки этой вкладки',localScope:'Только технические коды и время. Журнал не отправляется на сервер, другие устройства здесь не видны.',localEmpty:'В этой вкладке ошибок не записано. Это не доказывает, что сайт работает без ошибок.',remoteOff:'Общий серверный журнал пока не подключён.'},
  fi:{title:'Ylläpito',sub:'Yksityinen hallintanäkymä • testisivusto',checking:'Ylläpito-oikeuksia tarkistetaan…',
   notReady:'Kirjautumispalvelu ei ole käytettävissä.',signIn:'Kirjaudu ensin opiskelusivulla Google-tilillä.',
   denied:'Tällä tilillä ei ole ylläpito-oikeuksia.',authError:'Oikeuksien tarkistus epäonnistui.',
@@ -32,7 +33,8 @@
   errorGroups:'Virheryhmät',version:'Sivuston versio',browserTitle:'Virheet selaimittain',syncTitle:'Synkronointivirheet',
   backupTitle:'Viimeisin tarkistettu varmuuskopio',auditTitle:'Ylläpidon viimeisimmät toimet',
   updateTitle:'Yhden päivityspaketin lataus',blocked:'Julkaisu on estetty, kunnes suojattu palvelin, tiedostotarkastukset, testit ja palautus ovat käytettävissä.',
-  refresh:'Päivitä tiedot',missing:'Palvelimen koontitietoja ei ole yhdistetty.',noPersonal:'Oppilaiden yksityisiä vastauksia ei näytetä.'},
+  refresh:'Päivitä tiedot',missing:'Palvelimen koontitietoja ei ole yhdistetty.',noPersonal:'Oppilaiden yksityisiä vastauksia ei näytetä.',
+  localErrors:'Tämän välilehden virheet',localScope:'Vain tekniset koodit ja kellonaika. Tietoja ei lähetetä palvelimelle eikä muilta laitteilta kerätä.',localEmpty:'Tällä välilehdellä ei ole kirjattuja virheitä. Se ei todista sivustoa virheettömäksi.',remoteOff:'Yhteistä palvelinlokitusta ei ole vielä yhdistetty.'},
  en:{title:'Administration',sub:'Private dashboard • test site',checking:'Checking administrator privileges…',
   notReady:'Firebase Authentication is unavailable.',signIn:'First sign in to the study site with Google.',
   denied:'This account has no verified administrator role.',authError:'Could not verify permissions.',
@@ -43,7 +45,8 @@
   errorGroups:'Error groups',version:'Site version',browserTitle:'Errors by browser',syncTitle:'Sync failures',
   backupTitle:'Last verified backup',auditTitle:'Recent admin actions',
   updateTitle:'One-file update package',blocked:'Publishing is disabled until a protected backend, file verification, tests and rollback are ready.',
-  refresh:'Refresh metrics',missing:'Server-wide metrics are not connected.',noPersonal:'Private study answers are never displayed.'}
+  refresh:'Refresh metrics',missing:'Server-wide metrics are not connected.',noPersonal:'Private study answers are never displayed.',
+  localErrors:'Errors in this browser tab',localScope:'Only technical codes and timestamps. Not uploaded; events from other devices are unavailable.',localEmpty:'No errors recorded in this tab. This is not evidence of a healthy site.',remoteOff:'Shared server-side error logging is not connected yet.'}
  };
  function t(){return labels[locale]||labels.ru;}
  function el(id){return d.getElementById(id);}
@@ -113,6 +116,22 @@
         });
         if(!count)add(z,'p','',t().noData);
       } else add(z,'p','',t().noData);
+   }
+   if(tab==='errors'){
+     // Local browser-tab entries, never remote or user-wide monitoring.
+     // render() is already behind the verified-admin-claim gate.
+     var local=add(p,'div','panel','');
+     add(local,'h3','',t().localErrors);
+     add(local,'p','muted',t().localScope);
+     var log=w.RS_V3_LOCAL_DIAGNOSTICS,items=[];
+     try{if(log&&typeof log.entries==='function')items=log.entries();}catch(ignore){items=[];}
+     if(!Array.isArray(items)||!items.length)add(local,'p','',t().localEmpty);
+     else items.slice(-30).reverse().forEach(function(entry){
+       if(!entry||typeof entry.code!=='string'||!/^[-A-Z0-9_]{1,50}$/.test(entry.code))return;
+       if(typeof entry.minute!=='number'||!isFinite(entry.minute))return;
+       add(local,'p','',entry.code+' — '+new Date(entry.minute).toLocaleString());
+     });
+     add(local,'p','muted',t().remoteOff);
    }
    var action=add(p,'button','','');
    action.textContent=t().refresh;action.type='button';action.disabled=busy;
