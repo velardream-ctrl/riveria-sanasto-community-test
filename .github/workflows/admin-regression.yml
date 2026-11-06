@@ -96,6 +96,9 @@ jobs:
       - name: Verify TEST study engine two virtual devices and 13-event offline replay
         run: node --test admin/tests/v3-two-device-offline-contract.test.cjs
 
+      - name: PREVIEW ONLY full TEST source with NEW-009 candidate in VM (NO SOURCE WRITE)
+        run: node --test admin/tests/v3-refresh-candidate-fullsource.test.cjs
+
       - name: Known-red NEW-009 refresh regression (isolated, not a fix)
         shell: bash
         run: |
