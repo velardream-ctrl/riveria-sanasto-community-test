@@ -80,6 +80,13 @@ jobs:
           node --check admin/tests/v3-diff-missing-state-guard.test.cjs
           node --test admin/tests/v3-diff-missing-state-guard.test.cjs
 
+      - name: Code-only local error journal and admin access safety (NO network/cloud)
+        run: |
+          node --check v3-unified-preview/study-diagnostics.js
+          node --check admin/tests/study-local-diagnostics.test.cjs
+          node --check v3-unified-preview/admin/admin-page.js
+          node --test admin/tests/study-local-diagnostics.test.cjs
+
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
 
