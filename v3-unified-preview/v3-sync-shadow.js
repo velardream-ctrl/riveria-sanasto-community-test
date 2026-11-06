@@ -51,7 +51,7 @@
    if(!plain(finds))throw Error('Invalid personal finds snapshot');
    Object.keys(finds).forEach(function(id){
      var v=finds[id];
-     if(!/^(T[0-9]{5,7}|W_[a-f0-9]{32})$/.test(id)||!plain(v)||
+     if(!/^([TMPH][0-9]{5,7}|W_[a-f0-9]{32})$/.test(id)||!plain(v)||
        typeof v.added!=='boolean'||['practice','study','other'].indexOf(v.topic)<0||
        typeof v.note!=='string'||v.note.length>350||!safeNum(v.updatedAt))
        throw Error('Invalid personal find; abort shadow transaction');

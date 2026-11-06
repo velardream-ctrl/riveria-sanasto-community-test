@@ -1,0 +1,20 @@
+rules_version = '2';
+// ISOLATED EMULATOR CONTRACT ONLY. NOT live/deployed rules. NEVER deploy this entire file:
+// it deliberately denies all other collections and would break the student application.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isVerifiedAdmin() {
+      return request.auth != null
+        && request.auth.token.admin == true
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+    match /admin_metrics/{metricId} {
+      allow get: if metricId == "current" && isVerifiedAdmin();
+      allow list, create, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

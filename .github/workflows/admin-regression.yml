@@ -1,0 +1,105 @@
+name: TEST admin regression (no Firebase/deploy)
+on:
+  push:
+    branches:
+      - feat/admin-control-center-package-spec-20261104
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/tests/**'
+      - 'admin/ops/**'
+      - 'admin/telemetry/**'
+      - 'v3-unified-preview/admin/**'
+      - 'v3-unified-preview/admin-entry.js'
+      - 'v3-unified-preview/study-diagnostics.js'
+      - 'v3-unified-preview/index.html'
+      - 'v3-unified-preview/v3-sync-*.js'
+      - 'v3-unified-preview/sw.js'
+      - '.github/workflows/admin-regression.yml'
+permissions:
+  contents: read
+jobs:
+  admin-access:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Static syntax checks
+        run: |
+          node --check v3-unified-preview/admin/admin-page.js
+          node --check v3-unified-preview/admin-entry.js
+          node --check v3-unified-preview/sw.js
+          node --check admin/tests/admin-access.test.cjs
+          node --check admin/ops/assign-test-admin.cjs
+          node --check admin/ops/assign-test-admin.test.cjs
+          node --check admin/ops/inspect-test-rules-readonly.cjs
+          node --check admin/ops/inspect-test-rules-readonly.test.cjs
+          node --check admin/telemetry/telemetry-contract.cjs
+          node --check admin/telemetry/aggregate-contract.cjs
+          node --check admin/tests/telemetry-contract.test.cjs
+          node --check admin/telemetry/browser-queue.es5.js
+          node --check admin/tests/browser-queue.test.cjs
+          node --check admin/telemetry/ingest-pilot.cjs
+          node --check admin/tests/ingest-pilot.test.cjs
+      - name: Offline fake-Firebase admin regression
+        run: node --test admin/tests/admin-access.test.cjs admin/ops/assign-test-admin.test.cjs admin/ops/inspect-test-rules-readonly.test.cjs
+      - name: Check TEST-only GDPR-minimal telemetry input and offline aggregates
+        run: node --test admin/tests/telemetry-contract.test.cjs
+      - name: Validate isolated ES5 diagnostics memory queue without network
+        run: node --test admin/tests/browser-queue.test.cjs
+      - name: TEST-only server ingress replay and quota simulation (no cloud)
+        run: node --test admin/tests/ingest-pilot.test.cjs
+      - name: V3 FI/RU/EN UI dictionary and iOS12 syntax quality (offline)
+        run: |
+          node --check v3-unified-preview/i18n.js
+          node --test admin/tests/i18n-ui-quality.test.cjs
+      - name: Verify ES5 V3 localized controls, queue and private-note separation (offline)
+        run: |
+          node --check v3-unified-preview/i18n.js
+          node --check v3-unified-preview/v3-sync-release.js
+          node --check admin/tests/v3-sync-i18n-runtime.test.cjs
+          node --test admin/tests/v3-sync-i18n-runtime.test.cjs
+      - name: Verify V3 My Finds TMPH catalog ID roundtrip (offline only)
+        run: |
+          node --check v3-unified-preview/v3-sync-core.js
+          node --check v3-unified-preview/v3-sync-shadow.js
+          node --check admin/tests/study-finds-id-contract.test.cjs
+          node --test admin/tests/study-finds-id-contract.test.cjs
+      - name: Study V3 iOS12 offline shell + content-addressed cache regression (NO cloud)
+        run: |
+          node --check v3-unified-preview/sw.js
+          node --check admin/tests/study-offline-cache-version.test.cjs
+          node --test admin/tests/study-offline-cache-version.test.cjs
+
+      - name: V3 data disappearance fail-closed regression NEW-011 (synthetic only)
+        run: |
+          node --check v3-unified-preview/v3-sync-diff.js
+          node --check admin/tests/v3-diff-missing-state-guard.test.cjs
+          node --test admin/tests/v3-diff-missing-state-guard.test.cjs
+
+      - name: Code-only local error journal and admin access safety (NO network/cloud)
+        run: |
+          node --check v3-unified-preview/study-diagnostics.js
+          node --check admin/tests/study-local-diagnostics.test.cjs
+          node --check v3-unified-preview/admin/admin-page.js
+          node --test admin/tests/study-local-diagnostics.test.cjs
+
+      - name: Existing release manifest tests
+        run: node admin/tests/release-manifest.test.cjs
+
+      - name: Install isolated fake IndexedDB for two-device study regression
+        run: npm install --no-save fake-indexeddb@6.2.7
+
+      - name: Verify TEST study engine two virtual devices and 13-event offline replay
+        run: node --test admin/tests/v3-two-device-offline-contract.test.cjs
+
+      - name: PREVIEW ONLY full TEST source with NEW-009 candidate in VM (NO SOURCE WRITE)
+        run: node --test admin/tests/v3-refresh-candidate-fullsource.test.cjs
+
+      - name: MANDATORY NEW-009 real TEST source truthful cloud sync acceptance (5/5)
+        run: |
+          node --check admin/tests/v3-sync-refresh-failclosed-gate.test.cjs
+          node --test admin/tests/v3-sync-refresh-failclosed-gate.test.cjs
