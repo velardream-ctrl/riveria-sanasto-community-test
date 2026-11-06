@@ -73,6 +73,12 @@ jobs:
           node --check admin/tests/study-offline-cache-version.test.cjs
           node --test admin/tests/study-offline-cache-version.test.cjs
 
+      - name: V3 data disappearance fail-closed regression NEW-011 (synthetic only)
+        run: |
+          node --check v3-unified-preview/v3-sync-diff.js
+          node --check admin/tests/v3-diff-missing-state-guard.test.cjs
+          node --test admin/tests/v3-diff-missing-state-guard.test.cjs
+
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
 
