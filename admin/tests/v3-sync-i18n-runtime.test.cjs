@@ -98,7 +98,7 @@ test('TEST HTML and offline service worker cache both reference new localized mo
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
   for(const marker of ['i18n.js?v=v3-approved-ui-4',
-    'v3-sync-release.js?v=v3-myfinds-i18n-1']){
+    'v3-sync-release.js?v=refresh-new009-fixed-1']){
     assert.ok(html.includes(marker));
     assert.ok(sw.includes(marker));
   }
