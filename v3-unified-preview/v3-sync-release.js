@@ -240,18 +240,35 @@
  }
  function refresh(){
    if(!active())return Promise.resolve(false);
-   return orderly(function(){
-     return engine.upload().catch(function(){return null;}).then(function(){
+   var owner=uid,token=epoch;
+   var job=orderly(function(){
+     // A failed upload must never be reinterpreted as cloud success.
+     return engine.upload().then(function(){
        return engine.refresh();
      }).then(function(r){
-       row=r;
+       if(!r||!r.state||!Array.isArray(r.pending))
+         throw Error('Invalid V3 refresh result');
+       if(r.pending.length)
+         throw Error('Unsent V3 changes remain in IndexedDB');
        return r;
      });
-   }).then(function(r){
-     // Do not overwrite UI changes that have not been captured or persisted.
-     if(queued===0)apply(r);
-     text('Данные V3 сверены с облаком.',false);return true;
-   }).catch(function(e){text('Сверка V3 не выполнена: '+e.message,true);return false;});
+   });
+   // Wait for THIS operation's queue cleanup before applying cloud data.
+   // If a new write appears meanwhile, do not overwrite the newer local UI.
+   var settled=queue;
+   return job.then(function(r){
+     return settled.then(function(){
+       if(token!==epoch||uid!==owner||!active())
+         throw Error('V3 account changed during refresh');
+       if(queued!==0)throw Error('New changes queued during refresh');
+       if(!apply(r))throw Error('V3 cloud state not applied locally');
+       text('Данные V3 сверены с облаком.',false);
+       return true;
+     });
+   }).catch(function(e){
+     text('Сверка V3 не выполнена: '+String(e.message||e),true);
+     return false;
+   });
  }
  function capture(){
    if(!active()||applying||!observed)return;
