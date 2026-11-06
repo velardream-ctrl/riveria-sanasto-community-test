@@ -14,7 +14,7 @@
  'use strict';
  var KEY='rs_v3_test_local_diagnostic_codes_v1';
  var PROJECT='sanastoyhteiso-v3-development';
- var LIMIT=30,MAX_AGE=86400000,DEDUP=30000;
+ var LIMIT=30,MAX_AGE=86400000;
  var CODES={
   APP_RENDER_FAILED:1,SYNC_UPLOAD_FAILED:1,SYNC_DOWNLOAD_FAILED:1,
   SYNC_QUEUE_STUCK:1,INDEXEDDB_UNAVAILABLE:1,CACHE_MISMATCH:1,
@@ -63,7 +63,8 @@
    var s=storage();if(!s)return false;
    var now=Date.now(),minute=Math.floor(now/60000)*60000,entries=readAt(now);
    var latest=entries.length?entries[entries.length-1]:null;
-   if(latest&&latest.code===code&&now-latest.minute<DEDUP)return false;
+   // Stored times are minute-rounded for privacy; deduplicate at the same precision.
+   if(latest&&latest.code===code&&latest.minute===minute)return false;
    entries.push({code:code,minute:minute});
    entries=entries.slice(-LIMIT);
    try{s.setItem(KEY,JSON.stringify({v:1,items:entries}));return true;}
