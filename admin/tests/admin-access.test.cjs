@@ -63,6 +63,8 @@ test('local error journal is visible only after verified admin claim, never to o
   assert.equal(reads,0);assert.equal(h.elems['admin-root'].hidden,true);
   h.emit(user('admin',true));await tick();
   assert.equal(h.elems['admin-root'].hidden,false);
+  assert.equal(h.pending.length,1);
+  h.pending[0].resolve({exists:false});await tick();
   const tabs=h.elems['admin-tabs'].children;
   assert.ok(tabs.length>1);tabs[1].listeners.click();
   assert.equal(reads,1);
@@ -103,9 +105,9 @@ test('admin scripts stay read-only and service worker scripts match HTML',()=>{
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const a=fs.readFileSync(path.join(root,'admin/index.html'),'utf8');
  const i=fs.readFileSync(path.join(root,'index.html'),'utf8');
- assert.match(a,/admin-page\.js\?v=admin-health-3/);
+ assert.match(a,/admin-page\.js\?v=admin-health-4/);
  assert.match(i,/admin-entry\.js\?v=admin-auth-2/);
- assert.match(sw,/admin-page\.js\?v=admin-health-3/);
+ assert.match(sw,/admin-page\.js\?v=admin-health-4/);
  assert.match(sw,/admin-entry\.js\?v=admin-auth-2/);
  assert.doesNotMatch(page,/\.set\(|\.update\(|\.delete\(/);
 });
