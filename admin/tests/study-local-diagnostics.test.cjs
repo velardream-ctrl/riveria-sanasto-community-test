@@ -42,6 +42,21 @@ test('no automatic network or Firebase calls: unexpected/PII-bearing codes rejec
   assert.equal(h.api.record('SYNC_QUEUE_STUCK'),true);assert.equal(h.api.entries().length,1);
   assert.equal(h.api.record('SYNC_QUEUE_STUCK'),false);
 });
+test('NEW-013: minute-rounded error codes must deduplicate even at second 49 of minute',()=>{
+  const h=harness(),base=1800000000000;
+  let tick=base+49000; // within the last half of a minute, deterministic
+  h.browser.Date={now:function(){return tick;}};
+  assert.equal(h.api.record('SYNC_QUEUE_STUCK'),true);
+  tick+=1000;
+  assert.equal(h.api.record('SYNC_QUEUE_STUCK'),false,
+    'Immediate duplicate must not pass merely because minute bucket is >30 seconds old');
+  assert.equal(h.api.entries().length,1);
+  tick=base+61000; // a new rounded minute is allowed as a distinct diagnostic
+  assert.equal(h.api.record('SYNC_QUEUE_STUCK'),true);
+  assert.equal(h.api.entries().length,2);
+  assert.equal(h.api.entries()[0].minute%60000,0);
+});
+
 test('wrong Firebase project or wrong page path cannot enable this isolated TEST journal',()=>{
   for(const h of [harness('riveria-sanasto-community-test'),harness('sanastoyhteiso-v3-development','/other-page/')]){
     assert.equal(h.api.allowedSite(),false);
