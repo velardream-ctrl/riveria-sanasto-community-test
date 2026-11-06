@@ -11,6 +11,7 @@ on:
       - 'admin/telemetry/**'
       - 'v3-unified-preview/admin/**'
       - 'v3-unified-preview/admin-entry.js'
+      - 'v3-unified-preview/study-diagnostics.js'
       - 'v3-unified-preview/index.html'
       - 'v3-unified-preview/v3-sync-*.js'
       - 'v3-unified-preview/sw.js'
