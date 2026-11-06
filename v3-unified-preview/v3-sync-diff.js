@@ -34,6 +34,21 @@
  }
  function changes(previous,current){
    var a=project(previous),b=project(current),out=[],unsafe=[];
+   // Missing keys mean incomplete local state, NOT an authorized deletion.
+   // Fail closed: preserve the prior snapshot and require explicit recovery.
+   // An intentional favorite removal is represented as a retained false key.
+   Object.keys(a.scores).sort().forEach(function(id){
+     if(!Object.prototype.hasOwnProperty.call(b.scores,id))
+       unsafe.push('missing-score:'+id);
+   });
+   Object.keys(a.favorites).sort().forEach(function(id){
+     if(!Object.prototype.hasOwnProperty.call(b.favorites,id))
+       unsafe.push('missing-favorite:'+id);
+   });
+   Object.keys(a.words).sort().forEach(function(id){
+     if(!Object.prototype.hasOwnProperty.call(b.words,id))
+       unsafe.push('missing-word:'+id);
+   });
    Object.keys(b.scores).sort().forEach(function(id){
      var old=a.scores[id]||{seen:0,correct:0,wrong:0,learned:false};
      var now=b.scores[id],ds=now.seen-old.seen,
