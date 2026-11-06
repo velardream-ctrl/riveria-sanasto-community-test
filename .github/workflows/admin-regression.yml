@@ -90,6 +90,12 @@ jobs:
       - name: Existing release manifest tests
         run: node admin/tests/release-manifest.test.cjs
 
+      - name: Install isolated fake IndexedDB for two-device study regression
+        run: npm install --no-save fake-indexeddb@6.2.7
+
+      - name: Verify TEST study engine two virtual devices and 13-event offline replay
+        run: node --test admin/tests/v3-two-device-offline-contract.test.cjs
+
       - name: Known-red NEW-009 refresh regression (isolated, not a fix)
         shell: bash
         run: |
