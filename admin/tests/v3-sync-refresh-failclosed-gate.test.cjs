@@ -1,16 +1,8 @@
 'use strict';
 /*
- * RUN-063 / NEW-009. Test-only fail-closed acceptance gate for the real
- * TEST DRAFT V3 refresh() code. No real Firebase, IndexedDB, network,
- * credentials, account records or production paths are used.
- *
- * CURRENT STATUS: KNOWN RED on PR #3 HEAD f3a99c6 (RUN-062 BLOCKED).
- * To check a proposed FIX, run:
- *   V3_SYNC_ASSERT_FIXED=1 node --test admin/tests/v3-sync-refresh-failclosed-gate.test.cjs
- *
- * By default these acceptance assertions are SKIPPED, not claimed PASS:
- * the source defect is still open and this test is not part of the
- * mandatory green CI. Enable ONLY after a permitted source change.
+ * RUN-091 NEW-009: mandatory fail-closed acceptance on REAL TEST DRAFT source.
+ * Do not skip, suppress or classify a failing test as "known red".
+ * This is a VM with synthetic credentials, no Firebase/network/user data.
  */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -20,7 +12,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync(
   path.resolve(__dirname,'../../v3-unified-preview/v3-sync-release.js'),'utf8');
 const marker='w.RS_V3_RELEASE={';
-const verify=process.env.V3_SYNC_ASSERT_FIXED==='1'?test:test.skip;
+const verify=test;
 function fixture(params){
   assert.ok(source.includes(marker),'real V3 source entrypoint changed');
   const owner='synthetic-owner-1';
@@ -30,7 +22,7 @@ function fixture(params){
     RS_FAMILY:{
       uid:owner,
       getState(){return state;},
-      putState(){writes++;return true;}
+      putState(){writes++;return !params.storageFull;}
     },
     RS_V3_DIFF:{project(value){return value;}}
   };
@@ -56,7 +48,7 @@ function fixture(params){
     refresh(){
       return Promise.resolve({
         pending:params.pending||[],
-        state:{scores:{syntheticCard:1},words:{},favorites:{}}
+        state:params.malformedRemote?null:{scores:{syntheticCard:1},words:{},favorites:{}}
       });
     }
   };
@@ -83,4 +75,17 @@ verify('successful refresh MUST apply new state after orderly queue cleanup',asy
   assert.equal(await f.release.refresh(),true);
   assert.equal(f.writes(),1,
     'The cloud snapshot was not applied while queued counter was nonzero');
+});
+
+verify('storage write refusal MUST NOT be reported as successful cloud reconciliation',async()=>{
+  const f=fixture({storageFull:true});
+  assert.equal(await f.release.refresh(),false,
+    'Local storage unavailable: no sync success without applied student state');
+  assert.doesNotMatch(f.tip(),/Данные V3 сверены с облаком/);
+});
+verify('malformed cloud state MUST fail closed without acknowledging sync',async()=>{
+  const f=fixture({malformedRemote:true});
+  assert.equal(await f.release.refresh(),false,
+    'Malformed cloud state must never be confirmed as synchronized');
+  assert.doesNotMatch(f.tip(),/Данные V3 сверены с облаком/);
 });
