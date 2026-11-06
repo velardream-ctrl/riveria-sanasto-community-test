@@ -56,7 +56,7 @@ test('all precached entries are safe and present (including both icon sizes)',fu
   assert.ok(unique.includes('index.html')&&unique.includes('data.js')&&unique.includes('family.js'));
   assert.ok(unique.includes('icon-192.png')&&unique.includes('icon-512.png'));
   assert.ok(unique.includes('v3-sync-core.js')&&unique.includes('v3-sync-release.js'));
-  assert.equal(unique.length,31,'Review intentionally added/removed shell assets before updating the guard');
+  assert.equal(unique.length,32,'Review intentionally added/removed shell assets before updating the guard');
   for(const p of unique)assert.ok(fs.statSync(path.join(ROOT,p)).isFile(),'Missing public asset: '+p);
 });
 test('root AND admin HTML load only precached local JS/CSS with exact query versions',function(){
