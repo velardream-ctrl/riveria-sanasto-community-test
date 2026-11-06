@@ -47,7 +47,7 @@ function harness(script,opts){
   const app={options:{...cfg,...(opts.appOptions||{})}};
   const firebase={apps:opts.noApps?[]:[app],app(){return app;},initializeApp(c){this.apps.push({options:c});return {options:c};},
     auth(){return auth;},firestore(){return db;}};
-  const window={firebase,RS_FIREBASE_CONFIG:cfg,navigator:{language:'ru'},addEventListener(){}};
+  const window={firebase,RS_FIREBASE_CONFIG:cfg,RS_V3_LOCAL_DIAGNOSTICS:opts.diagnostics,navigator:{language:'ru'},addEventListener(){}};
   vm.runInNewContext(script,{window,document,Promise,Date,console}, {timeout:1500});
   return {auth,document,elems,cfg,firebase,emit(u){auth.currentUser=u;if(onToken)onToken(u);},
     error(){if(onError)onError(Error('auth'));},get reads(){return reads;},get writes(){return writes;},pending};
@@ -55,6 +55,24 @@ function harness(script,opts){
 async function tick(){await Promise.resolve();await Promise.resolve();await Promise.resolve();}
 test('admin page starts hidden and listens to token changes',()=>{const h=harness(page);assert.equal(h.elems['admin-root'].hidden,true);h.emit(null);assert.equal(h.elems['admin-root'].hidden,true);});
 test('valid verified strict admin claim unlocks only test UI',async()=>{const h=harness(page),u=user('a',true);h.emit(u);await tick();assert.equal(h.elems['admin-root'].hidden,false);assert.equal(h.reads,1);assert.equal(h.writes,0);});
+test('local error journal is visible only after verified admin claim, never to ordinary user',async()=>{
+  let reads=0;
+  const diagnostics={entries(){reads++;return [{code:'SYNC_QUEUE_STUCK',minute:Date.now()}];}};
+  const h=harness(page,{diagnostics});
+  h.emit(user('student',false));await tick();
+  assert.equal(reads,0);assert.equal(h.elems['admin-root'].hidden,true);
+  h.emit(user('admin',true));await tick();
+  assert.equal(h.elems['admin-root'].hidden,false);
+  const tabs=h.elems['admin-tabs'].children;
+  assert.ok(tabs.length>1);tabs[1].listeners.click();
+  assert.equal(reads,1);
+  const collect=node=>[node.textContent].concat(...node.children.map(collect));
+  assert.ok(collect(h.elems['admin-view']).some(s=>s.includes('SYNC_QUEUE_STUCK')));
+  h.emit(user('student2',false));await tick();
+  assert.equal(h.elems['admin-root'].hidden,true);
+  assert.equal(h.elems['admin-view'].children.length,0);
+});
+
 test('ordinary account cannot open admin page',async()=>{const h=harness(page);h.emit(user('a',false));await tick();assert.equal(h.elems['admin-root'].hidden,true);assert.equal(h.reads,0);});
 test('truthy nonboolean admin claim is rejected',async()=>{const h=harness(page);h.emit(user('a','true'));await tick();assert.equal(h.elems['admin-root'].hidden,true);});
 test('unverified user is denied without claim call',async()=>{const h=harness(page),u=user('a',true,{verified:false});h.emit(u);await tick();assert.equal(u.calls.length,0);assert.equal(h.reads,0);});
