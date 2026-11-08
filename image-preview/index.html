@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Sanastoyhteisö — тест картинки в карточке сердца</title>
+<style>
+*{box-sizing:border-box}html{font-size:16px}body{margin:0;background:#e9f5f8;color:#183744;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.55}
+header{background:#fff;border-bottom:1px solid #d1e6eb;padding:15px 18px}header .head{max-width:760px;margin:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{font-size:19px;font-weight:750;color:#13607a}.chip{font-size:12px;font-weight:750;color:#16617a;background:#e1f5fa;border:1px solid #a9d6e1;border-radius:20px;padding:3px 10px}
+main{max-width:760px;margin:26px auto;padding:0 15px 40px}h1{font-size:24px;margin:0 0 6px}h2{font-size:18px;margin:0 0 4px}.sub{color:#546f7d;margin:0 0 18px}
+.panel{background:white;border:1px solid #d2e3e7;border-radius:16px;padding:22px;margin-bottom:16px;box-shadow:0 5px 18px rgba(20,73,87,.05)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#587380;font-size:14px}
+.term{text-align:center;font-weight:750;font-size:clamp(32px,7vw,44px);margin:24px 0 10px;color:#134e63}.hint{text-align:center;color:#65828f;margin:0 0 22px}.translation{text-align:center;font-size:28px;color:#165b73;font-weight:700;margin:10px 0 13px}
+.actions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px}
+button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #f2a529;outline-offset:3px}
+.btn{background:#fff;color:#155c73;border:1px solid #9bbfc9;border-radius:10px;padding:11px 17px;min-height:44px;font-weight:700}
+.btn.primary{color:white;background:#116b87;border-color:#116b87}.btn:hover{filter:brightness(.96)}
+.picture-frame{border:1px solid #d4e1e5;border-radius:12px;background:#f9fcfd;margin:14px auto 10px;max-width:485px;padding:10px}
+.picture-btn{width:100%;border:0;background:transparent;padding:0;display:block;cursor:zoom-in}
+.picture-btn img{max-width:100%;width:auto;max-height:420px;display:block;margin:auto;object-fit:contain;min-height:90px}
+.image-hint{font-size:13px;color:#516d7b;text-align:center;margin:8px 0 0}
+.explain{padding:15px 17px;border-radius:12px;background:#f2f8fa;margin-top:17px;border-left:4px solid #88bdce}
+.explain p{margin:9px 0}.explain p:first-child{margin-top:0}.explain p:last-child{margin-bottom:0}
+.licence{font-size:12px;color:#667a83;margin:14px 0 0}.licence a{color:#146e91}
+.notice{font-size:14px;color:#385c69;line-height:1.55}
+[hidden]{display:none!important}
+.modal{position:fixed;z-index:10;inset:0;background:rgba(7,25,34,.95);display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;color:#fff}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;gap:12px;z-index:2}.modal-title{font-size:16px;font-weight:750}.modal .btn{color:#fff;background:#284651;border:1px solid #7599a5;min-width:47px}.modal-stage{flex:1;min-height:0;overflow:hidden;touch-action:none;position:relative;display:flex;align-items:center;justify-content:center;cursor:grab}
+.modal-stage img{display:block;max-width:95vw;max-height:76vh;object-fit:contain;transform-origin:center center;user-select:none;-webkit-user-select:none;pointer-events:none}
+.modal-bottom{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 10px 17px;background:rgba(10,25,35,.85)}
+.scale{min-width:65px;text-align:center;font-variant-numeric:tabular-nums}.modal-help{font-size:12px;text-align:center;margin:0 0 8px;color:#c6d5dd}
+@media(max-width:520px){main{margin:15px auto;padding:0 10px 30px}.panel{padding:17px 14px}.term{margin-top:16px}.modal-head{padding:9px 11px}.modal-bottom{padding-bottom:25px}}
+</style>
+</head>
+<body>
+<header><div class="head"><span class="brand">✚ Sanastoyhteisö 3.0</span><span class="chip">ТЕСТ · без входа</span></div></header>
+<main>
+<h1>Иллюстрации к карточкам</h1>
+<p class="sub">Пробный пример: EXAM05 · Verenkierto · кровообращение</p>
+<div class="panel">
+<div class="card-head"><span>Карточка 1 / 1</span><span>ID T00574</span></div>
+<div class="term" lang="fi">sydän</div>
+<div id="before"><p class="hint">Вспомни перевод, затем нажми «Показать ответ».</p><div class="actions"><button type="button" class="btn primary" id="reveal">◉ Показать ответ</button></div></div>
+<div id="after" hidden>
+<div class="translation" lang="ru">сердце</div>
+<div class="picture-frame">
+<button type="button" class="picture-btn" id="picture" aria-label="Увеличить схему сердца" title="Коснись изображения, чтобы увеличить">
+<img id="heart" alt="Анатомическая схема сердца в разрезе: предсердия, желудочки и крупные сосуды" width="642" height="656">
+</button>
+<p class="image-hint" id="image-status" role="status">Загружаем изображение…</p>
+</div>
+<div class="explain">
+<p><b>Latina:</b> <i lang="la">cor</i></p>
+<p lang="fi"><b>FI:</b> Rintaontelossa hieman vasemmalla sijaitseva lihaselin pumppaa verta.</p>
+<p lang="ru"><b>RU:</b> Мышечный орган в грудной клетке, немного слева; перекачивает кровь.</p>
+</div>
+<p class="licence">Тестовая иллюстрация: Wapcaplet / Yaddah, <a href="https://commons.wikimedia.org/wiki/File:Diagram_of_the_human_heart.svg" target="_blank" rel="noopener noreferrer">Wikimedia Commons, CC BY-SA 3.0</a>. Это доступная для демонстрации схема; совпадение с изображением из прежней Work-сессии не подтверждено.</p>
+<div class="actions"><button class="btn" type="button" id="reset">↻ Проверить ещё раз</button></div>
+</div>
+</div>
+<div class="panel notice"><b>Что проверяем</b><p>Изображение не загружается до показа ответа. После открытия остаются перевод, Latinа, FI и RU. Нажатие на схему открывает увеличенный просмотр с кнопками и жестом двумя пальцами. Это отдельный макет: здесь нет аккаунта, Firebase и записи учебных результатов.</p></div>
+</main>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Увеличенная схема сердца" hidden>
+<div class="modal-head"><span class="modal-title">sydän · cor · сердце</span><button class="btn" id="close" type="button" aria-label="Закрыть увеличенное изображение">✕ Закрыть</button></div>
+<div class="modal-stage" id="stage"><img id="zoom-image" alt="Увеличенная анатомическая схема сердца" draggable="false"></div>
+<div><div class="modal-bottom"><button class="btn" id="minus" type="button" aria-label="Уменьшить">−</button><span class="scale" id="scale">100%</span><button class="btn" id="plus" type="button" aria-label="Увеличить">+</button><button class="btn" id="default-zoom" type="button">Сброс</button></div><p class="modal-help">Два пальца — масштаб · один палец — перемещение · кнопки + / −</p></div>
+</div>
+<script>
+(function(){
+"use strict";
+var imageUrl="https://commons.wikimedia.org/wiki/Special:FilePath/Diagram_of_the_human_heart.svg";
+var backupUrl="https://commons.wikimedia.org/wiki/Special:FilePath/Heart_diagram-en.svg";
+var heart=document.getElementById("heart"),zoomImage=document.getElementById("zoom-image"),modal=document.getElementById("modal"),status=document.getElementById("image-status");
+var stage=document.getElementById("stage"),scale=1,dx=0,dy=0,pinchStart=0,pinchScale=1,lastX=0,lastY=0,dragging=false,previousFocus=null;
+function apply(){zoomImage.style.transform="translate("+dx+"px,"+dy+"px) scale("+scale+")";document.getElementById("scale").textContent=Math.round(scale*100)+"%";}
+function zoom(v){scale=Math.max(1,Math.min(5,v));if(scale===1){dx=0;dy=0;}apply();}
+function openModal(){if(!heart.complete||!heart.naturalWidth)return;previousFocus=document.activeElement;zoomImage.src=heart.currentSrc||heart.src;modal.hidden=false;document.body.style.overflow="hidden";zoom(1);document.getElementById("close").focus();}
+function closeModal(){modal.hidden=true;document.body.style.overflow="";dragging=false;if(previousFocus&&previousFocus.focus)previousFocus.focus();}
+function imageReady(){status.textContent="Нажми на изображение, чтобы увеличить.";document.getElementById("picture").disabled=false;}
+function imageFailure(){if(heart.src!==backupUrl){heart.src=backupUrl;return;}status.innerHTML="Схему не удалось загрузить. <a href=\"https://commons.wikimedia.org/wiki/File:Diagram_of_the_human_heart.svg\" target=\"_blank\" rel=\"noopener noreferrer\">Открыть источник</a>.";document.getElementById("picture").disabled=true;}
+heart.addEventListener("load",imageReady);heart.addEventListener("error",imageFailure);
+document.getElementById("reveal").addEventListener("click",function(){document.getElementById("before").hidden=true;document.getElementById("after").hidden=false;heart.src=imageUrl;});
+document.getElementById("reset").addEventListener("click",function(){document.getElementById("before").hidden=false;document.getElementById("after").hidden=true;heart.removeAttribute("src");status.textContent="Загружаем изображение…";});
+document.getElementById("picture").addEventListener("click",openModal);
+document.getElementById("close").addEventListener("click",closeModal);
+document.getElementById("plus").addEventListener("click",function(){zoom(scale+.5);});
+document.getElementById("minus").addEventListener("click",function(){zoom(scale-.5);});
+document.getElementById("default-zoom").addEventListener("click",function(){zoom(1);});
+document.addEventListener("keydown",function(e){if(modal.hidden)return;var key=e.key||e.keyCode;if(key==="Escape"||key===27)closeModal();else if(key==="+"||key==="="||key===187)zoom(scale+.5);else if(key==="-"||key===189)zoom(scale-.5);});
+function distance(a,b){var x=a.clientX-b.clientX,y=a.clientY-b.clientY;return Math.sqrt(x*x+y*y);}
+stage.addEventListener("touchstart",function(e){if(e.touches.length===2){pinchStart=distance(e.touches[0],e.touches[1]);pinchScale=scale;dragging=false;}else if(e.touches.length===1){lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;dragging=true;}},{passive:false});
+stage.addEventListener("touchmove",function(e){if(e.touches.length===2&&pinchStart){e.preventDefault();zoom(pinchScale*distance(e.touches[0],e.touches[1])/pinchStart);}else if(e.touches.length===1&&dragging&&scale>1){e.preventDefault();dx+=e.touches[0].clientX-lastX;dy+=e.touches[0].clientY-lastY;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;apply();}},{passive:false});
+stage.addEventListener("touchend",function(e){if(e.touches.length<2)pinchStart=0;if(e.touches.length===0)dragging=false;});
+stage.addEventListener("mousedown",function(e){dragging=true;lastX=e.clientX;lastY=e.clientY;});
+document.addEventListener("mouseup",function(){dragging=false;});
+stage.addEventListener("mousemove",function(e){if(!dragging||scale<=1)return;dx+=e.clientX-lastX;dy+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;apply();});
+})();
+</script>
+</body>
+</html>
