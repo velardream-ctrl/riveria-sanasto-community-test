@@ -1,0 +1,21 @@
+name: Heart image preview smoke
+on:
+  pull_request:
+    paths:
+      - 'image-preview/**'
+      - '.github/workflows/heart-image-preview.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'image-preview/**'
+      - '.github/workflows/heart-image-preview.yml'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check isolated heart demo
+        run: node image-preview/check-preview.js
