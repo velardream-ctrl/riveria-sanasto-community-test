@@ -76,7 +76,7 @@ body.family-locked .shell,body.family-locked .mobile-nav {visibility:hidden}
 .rs-med-reference .dict-row{margin:7px 0}
 
 /* TEST ONLY — accessible FI/RU/Latin learning notes for Riveria exam terms. */
-.rs-exam-notes{margin:14px 0 3px;padding:11px 13px;background:#eef8fb;border:1px solid #b8dce5;border-radius:11px;color:#194253;max-width:100%;overflow-wrap:anywhere;}
+.rs-exam-notes{margin:14px 0 3px;padding:11px 13px;background:#eef8fb;border:1px solid #b8dce5;border-radius:11px;color:#194253;max-width:100%;word-wrap:break-word;overflow-wrap:break-word;overflow-wrap:anywhere;}
 .rs-exam-notes summary{cursor:pointer;font-weight:700;padding:4px 0;}
 .rs-exam-note-inner p{font-size:0.94rem;line-height:1.5;margin:8px 0;white-space:normal;overflow-wrap:anywhere;}
 .rs-exam-note-inner strong{color:#104d64;}
