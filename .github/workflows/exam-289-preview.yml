@@ -1,0 +1,25 @@
+name: Validate 289 Riveria Exam Terms (TEST preview only)
+on:
+  pull_request:
+    paths:
+      - 'v3-unified-preview/**'
+      - 'tests/exam-289-preview.test.cjs'
+      - '.github/workflows/exam-289-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  node-synthetic-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify ES5 syntax and public data module
+        run: |
+          node --check v3-unified-preview/rs-exam-vocab.js
+          node --check v3-unified-preview/app.js
+          node --check v3-unified-preview/sw.js
+      - name: Verify 289 terms, 10 topics, no historical ID or cloud writes
+        run: node --test tests/exam-289-preview.test.cjs
